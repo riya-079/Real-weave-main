@@ -30,8 +30,8 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      <Link href="/dashboard" className="inline-flex items-center gap-2 text-white/40 hover:text-white transition-colors text-sm font-bold uppercase tracking-widest">
-        <ArrowLeft size={16} /> Back to dashboard
+      <Link href="/dashboard" className="inline-flex items-center gap-2 text-white/40 hover:text-white transition-colors text-sm font-bold tracking-[0.08em]">
+        <ArrowLeft size={16} /> Back to live dashboard
       </Link>
 
       <div className="glass-morphism rounded-3xl border border-white/10 p-8 md:p-10 space-y-8">
@@ -41,7 +41,7 @@ export default function ProfilePage() {
               <User size={36} />
             </div>
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-white/40 font-bold">Profile</p>
+              <p className="text-xs tracking-[0.08em] text-white/40 font-bold">Profile</p>
               <h1 className="text-4xl font-black text-white">{user.name}</h1>
               <p className="text-white/40 mt-1 flex items-center gap-2">
                 <Mail size={14} /> {user.email}
@@ -69,7 +69,7 @@ export default function ProfilePage() {
               Open settings
             </Link>
             <Link href="/dashboard" className="px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm">
-              Return to intelligence hub
+              Return to live dashboard
             </Link>
           </div>
         </div>
@@ -81,7 +81,7 @@ export default function ProfilePage() {
 function ProfileStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="p-5 rounded-2xl bg-white/5 border border-white/5">
-      <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-bold">{label}</p>
+      <p className="text-[10px] tracking-[0.08em] text-white/30 font-bold">{label}</p>
       <p className="text-2xl font-black text-white mt-2">{value}</p>
     </div>
   );

@@ -49,6 +49,17 @@ class Anomaly(Base):
     confidence = Column(Float)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+
+class AnomalyWorkflow(Base):
+    __tablename__ = "anomaly_workflows"
+
+    anomaly_id = Column(String, primary_key=True, index=True)
+    status = Column(String, default="open")
+    owner = Column(String, default="")
+    note = Column(String, default="")
+    archived = Column(Integer, default=0)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
 class Sentiment(Base):
     __tablename__ = "sentiments"
     
@@ -67,4 +78,26 @@ class FutureScenario(Base):
     probability = Column(Float)
     impact_score = Column(Float)
     ripple_effects = Column(JSON, default=list)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class DashboardSetting(Base):
+    __tablename__ = "dashboard_settings"
+
+    key = Column(String, primary_key=True, index=True)
+    value = Column(JSON, default=dict)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class SharedRiskPattern(Base):
+    __tablename__ = "shared_risk_patterns"
+
+    id = Column(String, primary_key=True, index=True)
+    anomaly_id = Column(String, nullable=True)
+    title = Column(String)
+    details = Column(String)
+    shared_by = Column(String, default="network")
+    visibility = Column(String, default="network")
+    status = Column(String, default="shared")
+    confidence = Column(Float, default=0.0)
+    partner_count = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

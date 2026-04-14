@@ -45,14 +45,14 @@ export default function RegisterPage() {
             <Network className="text-white" />
           </div>
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-white/40 font-bold">Real Weave</p>
+            <p className="text-xs tracking-[0.08em] text-white/40 font-bold">Real Weave Easy</p>
             <h1 className="text-2xl font-black text-white">Create account</h1>
           </div>
         </div>
 
         <form className="space-y-5" onSubmit={handleSubmit}>
           <label className="block space-y-2">
-            <span className="text-xs uppercase tracking-widest text-white/40 font-bold">Name</span>
+            <span className="text-xs tracking-[0.08em] text-white/40 font-bold">Name</span>
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/10">
               <User size={18} className="text-white/30" />
               <input
@@ -67,7 +67,7 @@ export default function RegisterPage() {
           </label>
 
           <label className="block space-y-2">
-            <span className="text-xs uppercase tracking-widest text-white/40 font-bold">Email</span>
+            <span className="text-xs tracking-[0.08em] text-white/40 font-bold">Email</span>
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/10">
               <Mail size={18} className="text-white/30" />
               <input
@@ -82,7 +82,7 @@ export default function RegisterPage() {
           </label>
 
           <label className="block space-y-2">
-            <span className="text-xs uppercase tracking-widest text-white/40 font-bold">Password</span>
+            <span className="text-xs tracking-[0.08em] text-white/40 font-bold">Password</span>
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/10">
               <Lock size={18} className="text-white/30" />
               <input
@@ -103,7 +103,7 @@ export default function RegisterPage() {
             disabled={loading}
             className="w-full py-3 bg-primary hover:bg-primary/80 disabled:opacity-60 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
           >
-            {loading ? 'Creating account...' : 'Register'}
+            {loading ? 'Creating account...' : 'Create account'}
             <ArrowRight size={18} />
           </button>
         </form>

@@ -48,14 +48,14 @@ export default function LoginPage() {
             <Network className="text-white" />
           </div>
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-white/40 font-bold">Real Weave</p>
+            <p className="text-xs tracking-[0.08em] text-white/40 font-bold">Real Weave Easy</p>
             <h1 className="text-2xl font-black text-white">Sign in</h1>
           </div>
         </div>
 
         <form className="space-y-5" onSubmit={handleSubmit}>
           <label className="block space-y-2">
-            <span className="text-xs uppercase tracking-widest text-white/40 font-bold">Email</span>
+            <span className="text-xs tracking-[0.08em] text-white/40 font-bold">Email</span>
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/10">
               <Mail size={18} className="text-white/30" />
               <input
@@ -70,7 +70,7 @@ export default function LoginPage() {
           </label>
 
           <label className="block space-y-2">
-            <span className="text-xs uppercase tracking-widest text-white/40 font-bold">Password</span>
+            <span className="text-xs tracking-[0.08em] text-white/40 font-bold">Password</span>
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/10">
               <Lock size={18} className="text-white/30" />
               <input
@@ -91,7 +91,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full py-3 bg-primary hover:bg-primary/80 disabled:opacity-60 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
           >
-            {loading ? 'Signing in...' : 'Enter Platform'}
+            {loading ? 'Signing in...' : 'Go to dashboard'}
             <ArrowRight size={18} />
           </button>
         </form>
@@ -100,8 +100,8 @@ export default function LoginPage() {
           No account yet? <Link href="/register" className="text-primary font-bold">Create one</Link>
         </p>
 
-        <p className="mt-4 text-[10px] text-white/25 text-center uppercase tracking-[0.2em]">
-          Demo access: demo@realweave.local / demo1234
+        <p className="mt-4 text-[10px] text-white/25 text-center tracking-[0.08em]">
+          Demo login: demo@realweave.local / demo1234
         </p>
       </div>
     </div>

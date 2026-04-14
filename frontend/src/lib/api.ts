@@ -39,6 +39,11 @@ export const getAnomalies = () => fetchAPI('/anomalies');
 export const getAnomaly = (id: string) => fetchAPI(`/anomalies/${id}`);
 export const createAnomaly = (data: any) => 
   fetchAPI('/anomalies', { method: 'POST', body: JSON.stringify(data) });
+export const deleteAnomaly = (id: string) => 
+  fetchAPI(`/anomalies/${id}`, { method: 'DELETE' });
+export const getAnomalyWorkflows = () => fetchAPI('/anomaly-workflows');
+export const upsertAnomalyWorkflow = (id: string, data: any) =>
+  fetchAPI(`/anomaly-workflows/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 
 // Organizations
 export const getOrganizations = () => fetchAPI('/organizations');
@@ -46,6 +51,26 @@ export const getOrganization = (id: string) => fetchAPI(`/organizations/${id}`);
 
 // Future Scenarios
 export const getScenarios = () => fetchAPI('/future-scenarios');
+export const createScenario = (data: any) =>
+  fetchAPI('/future-scenarios', { method: 'POST', body: JSON.stringify(data) });
+export const updateScenario = (id: string, data: any) =>
+  fetchAPI(`/future-scenarios/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+
+// Dashboard Settings
+export const getDashboardSettings = () => fetchAPI('/dashboard-settings');
+export const getDashboardSetting = (key: string) => fetchAPI(`/dashboard-settings/${key}`);
+export const upsertDashboardSetting = (key: string, value: any) =>
+  fetchAPI(`/dashboard-settings/${key}`, {
+    method: 'PUT',
+    body: JSON.stringify({ key, value }),
+  });
+
+// Shared Risk Patterns
+export const getSharedRiskPatterns = () => fetchAPI('/shared-risk-patterns');
+export const createSharedRiskPattern = (data: any) =>
+  fetchAPI('/shared-risk-patterns', { method: 'POST', body: JSON.stringify(data) });
+export const updateSharedRiskPattern = (id: string, data: any) =>
+  fetchAPI(`/shared-risk-patterns/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 
 // Events
 export const getEvents = (shipmentId?: string) => 

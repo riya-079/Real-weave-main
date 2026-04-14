@@ -1,17 +1,21 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, Play, AlertCircle, TrendingDown, DollarSign, Globe, Layers, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { createScenario, getScenarios } from '@/lib/api';
+import { useLiveRefresh } from '@/lib/useLiveRefresh';
 
-const scenarios = [
-  { id: 'S1', name: 'Port Labor Strike', impact: 0.82, risk: 'High', color: '#ef4444' },
-  { id: 'S2', name: 'Suez Congestion', impact: 0.45, risk: 'Medium', color: '#f59e0b' },
-  { id: 'S3', name: 'Chip Shortage v2', impact: 0.94, risk: 'Extreme', color: '#ec4899' },
-  { id: 'S4', name: 'Arctic Route Open', impact: -0.21, risk: 'Opportunity', color: '#10b981' },
-];
+type Scenario = {
+   id: string;
+   name: string;
+   description: string;
+   probability: number;
+   impact_score: number;
+   ripple_effects: string[];
+};
 
 const rippleData = [
   { node: 'Supplier A', delay: 4 },
@@ -21,56 +25,107 @@ const rippleData = [
 ];
 
 export default function FutureDreaming() {
-  const [selected, setSelected] = useState(scenarios[0]);
+   const [scenarios, setScenarios] = useState<Scenario[]>([]);
+   const [selected, setSelected] = useState<Scenario | null>(null);
   const [simulating, setSimulating] = useState(false);
 
-  const runSimulation = () => {
+   const loadScenarios = React.useCallback(async () => {
+      try {
+         const data = await getScenarios();
+         setScenarios(data);
+         setSelected((current) => {
+            if (!data.length) {
+               return null;
+            }
+            if (!current) {
+               return data[0];
+            }
+            return data.find((item: Scenario) => item.id === current.id) ?? data[0];
+         });
+      } catch (error) {
+         console.error('Failed to load scenarios:', error);
+      }
+   }, []);
+
+   useEffect(() => {
+      loadScenarios();
+   }, [loadScenarios]);
+
+   useLiveRefresh(loadScenarios);
+
+   const runSimulation = async () => {
+      if (!selected) {
+         return;
+      }
+
     setSimulating(true);
-    setTimeout(() => setSimulating(false), 2000);
+
+      const simulatedScenario: Scenario = {
+         id: `run-${Date.now()}`,
+         name: `${selected.name} result`,
+         description: `${selected.description} Simulated run saved at ${new Date().toLocaleString()}.`,
+         probability: Math.min(0.99, Math.max(0.01, selected.probability + 0.03)),
+         impact_score: Math.min(1, Math.max(0, selected.impact_score + 0.04)),
+         ripple_effects: [...selected.ripple_effects, 'Result saved to live scenario history'],
+      };
+
+      try {
+         const saved = await createScenario(simulatedScenario);
+         setScenarios((current) => [saved, ...current]);
+         setSelected(saved);
+         loadScenarios();
+      } catch (error) {
+         console.error('Failed to save simulation result:', error);
+      } finally {
+         setTimeout(() => setSimulating(false), 1200);
+      }
   };
+
+   const impactValue = selected ? Math.round(selected.impact_score * 100) : 0;
+   const probabilityValue = selected ? selected.probability : 0;
 
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center bg-primary/5 p-8 rounded-3xl border border-primary/20">
          <div>
-            <h2 className="text-3xl font-black text-white italic tracking-tighter">FUTURE DREAMING LAB</h2>
+            <h2 className="text-3xl font-black text-white italic tracking-tighter">FUTURE RISK SIMULATOR</h2>
             <p className="text-white/40 max-w-xl mt-2 font-medium">
-               Simulate alternate realities and identify hidden ripple effects before they manifest in physical space.
+               Run what-if scenarios to predict delays, losses, and chain impact before they happen.
             </p>
          </div>
          <button 
            onClick={runSimulation}
            disabled={simulating}
-           className="px-10 py-5 bg-primary text-white rounded-2xl font-black flex items-center gap-3 hover:scale-105 transition-all disabled:opacity-50 glow-shadow-primary uppercase tracking-widest text-sm"
+                className="px-10 py-5 bg-primary text-white rounded-2xl font-black flex items-center gap-3 hover:scale-105 transition-all disabled:opacity-50 glow-shadow-primary tracking-[0.08em] text-sm"
          >
-           {simulating ? 'SIMULATING...' : <><Play fill="white" size={20} /> RUN SCENARIO ENGINE</>}
+                {simulating ? 'Simulating...' : <><Play fill="white" size={20} /> Run scenario</>}
          </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
          {/* Scenario Selection */}
          <div className="space-y-4">
-            <h3 className="text-sm font-bold text-white uppercase tracking-[0.2em] mb-4 opacity-40">Active Scenarios</h3>
-            {scenarios.map(s => (
+            <h3 className="text-sm font-bold text-white tracking-[0.08em] mb-4 opacity-40">Scenarios</h3>
+                  {scenarios.map(s => (
               <div 
                 key={s.id}
                 onClick={() => setSelected(s)}
                 className={cn(
                   "p-6 rounded-2xl border cursor-pointer transition-all flex justify-between items-center group",
-                  selected.id === s.id ? "bg-white/10 border-white/20" : "glass-morphism border-white/5 hover:bg-white/5"
+                           selected?.id === s.id ? "bg-white/10 border-white/20" : "glass-morphism border-white/5 hover:bg-white/5"
                 )}
               >
                  <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center font-black text-white/20 group-hover:text-white transition-colors">
-                      {s.id}
+                                 {s.id.slice(0, 4)}
                     </div>
                     <div>
                        <h4 className="text-white font-bold">{s.name}</h4>
-                       <p className="text-[10px] text-white/30 uppercase tracking-widest">{s.risk} RISK</p>
+                                  <p className="text-[10px] text-white/30 tracking-[0.08em]">{s.description}</p>
                     </div>
                  </div>
-                 <div className={cn("text-xl font-black", selected.id === s.id ? "text-primary" : "text-white/20")}>
-                   {s.impact > 0 ? '+' : ''}{(s.impact * 100).toFixed(0)}%
+                         <div className={cn("text-xl font-black", selected?.id === s.id ? "text-primary" : "text-white/20")}>
+                            {(s.impact_score * 100).toFixed(0)}%
                  </div>
               </div>
             ))}
@@ -85,36 +140,39 @@ export default function FutureDreaming() {
                          <div className="absolute inset-0 border-4 border-primary rounded-full animate-ping opacity-20" />
                          <div className="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                       </div>
-                      <p className="text-primary font-mono tracking-tighter text-lg animate-pulse">COLLATING FUTURE STATES...</p>
+                      <p className="text-primary font-mono tracking-tighter text-lg animate-pulse">CALCULATING FUTURE RISKS...</p>
                    </div>
                 </div>
              ) : null}
 
              <div className="flex justify-between items-start mb-10">
                 <div>
-                   <h3 className="text-2xl font-bold text-white mb-2">{selected.name}</h3>
+                   <h3 className="text-2xl font-bold text-white mb-2">{selected?.name || 'Loading scenario...'}</h3>
                    <div className="flex gap-4">
                       <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg border border-white/5">
                          <DollarSign size={14} className="text-accent" />
-                         <span className="text-[10px] font-bold text-white uppercase tracking-widest">$420k Proj. Loss</span>
+                         <span className="text-[10px] font-bold text-white tracking-[0.08em]">{impactValue > 0 ? '$' : '-$'}{Math.abs(impactValue * 4200).toLocaleString()} estimated impact</span>
                       </div>
                       <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg border border-white/5">
                          <Globe size={14} className="text-primary" />
-                         <span className="text-[10px] font-bold text-white uppercase tracking-widest">Global Hub C-4</span>
+                         <span className="text-[10px] font-bold text-white tracking-[0.08em]">Live scenario from backend</span>
                       </div>
                    </div>
                 </div>
                 <div className="px-6 py-2 glass-morphism border border-white/10 rounded-xl text-white/60 text-xs font-bold italic">
-                   PROBABILITY: 0.14
+                   PROBABILITY: {probabilityValue.toFixed(2)}
                 </div>
              </div>
 
              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-6">
-                   <h4 className="text-xs font-bold text-white/40 uppercase tracking-widest">Ripple Effect Intensity</h4>
+                   <h4 className="text-xs font-bold text-white/40 tracking-[0.08em]">Ripple effect intensity</h4>
                    <div className="h-64 w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                         <BarChart data={rippleData}>
+                         <BarChart data={(selected?.ripple_effects?.length ? selected.ripple_effects : rippleData.map((item) => `${item.node} may be delayed`)).map((entry: any, index: number) => ({
+                            node: typeof entry === 'string' ? entry : entry.node,
+                            delay: typeof entry === 'string' ? (index + 1) * 8 : entry.delay,
+                         }))}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#fff1" vertical={false} />
                             <XAxis dataKey="node" stroke="#fff3" fontSize={10} tickLine={false} axisLine={false} />
                             <YAxis stroke="#fff3" fontSize={10} tickLine={false} axisLine={false} />
@@ -126,12 +184,21 @@ export default function FutureDreaming() {
                 </div>
 
                 <div className="space-y-6">
-                   <h4 className="text-xs font-bold text-white/40 uppercase tracking-widest">Hidden Chain Reactions</h4>
-                   <div className="space-y-4">
-                      <ReactionItem title="Inventory Starvation" desc="Delayed deliveries force local hub into emergency redistribution mode." severity="Critical" />
-                      <ReactionItem title="Contractual Penalty" desc="Threshold for delivery windows exceeded at 4 out of 10 nodes." severity="High" />
-                      <ReactionItem title="Trust Erosion" desc="Partner confidence predicted to drop by 14% in EU region." severity="Medium" />
-                   </div>
+                   <h4 className="text-xs font-bold text-white/40 tracking-[0.08em]">Likely chain reactions</h4>
+                            <div className="space-y-4">
+                                 {(selected?.ripple_effects?.length ? selected.ripple_effects : [
+                                    'Low inventory risk',
+                                    'Late-delivery penalty',
+                                    'Partner confidence drop',
+                                 ]).map((effect, index) => (
+                                    <ReactionItem
+                                       key={`${effect}-${index}`}
+                                       title={typeof effect === 'string' && effect.includes('risk') ? effect : `Effect ${index + 1}`}
+                                       desc={typeof effect === 'string' ? effect : 'Persisted scenario result'}
+                                       severity={index === 0 ? 'Critical' : index === 1 ? 'High' : 'Medium'}
+                                    />
+                                 ))}
+                            </div>
                 </div>
              </div>
              

@@ -54,7 +54,7 @@ export default function DashboardOverview() {
       <div className="flex items-center justify-center h-[60vh]">
         <div className="flex flex-col items-center gap-4">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-primary font-mono animate-pulse">SYNCHRONIZING INTELLIGENCE...</p>
+          <p className="text-primary font-mono animate-pulse">Loading live supply chain data...</p>
         </div>
       </div>
     );
@@ -67,10 +67,10 @@ export default function DashboardOverview() {
     <div className="space-y-10">
       {/* Top Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard title="Ecosystem Mood" value={overview?.mood?.label?.toUpperCase() || 'UNKNOWN'} sub={`${overview?.mood?.score || 0}% Stress Level`} color={moodColor} icon={<Activity />} />
+        <StatCard title="Network Health" value={overview?.mood?.label || 'Unknown'} sub={`${overview?.mood?.score || 0}% stress level`} color={moodColor} icon={<Activity />} />
         <StatCard title="Average Trust" value={overview?.trust_avg?.toFixed(2) || '0.00'} sub="+0.04 vs Last Week" color="text-accent" icon={<Shield />} />
-        <StatCard title="Active Anomalies" value={overview?.anomaly_count?.toString() || '0'} sub="3 Categorized as Extreme" color="text-danger" icon={<AlertTriangle />} />
-        <StatCard title="Future Impact" value="$1.2M" sub="Highest Loss Exposure" color="text-secondary" icon={<Zap />} />
+        <StatCard title="Active Alerts" value={overview?.anomaly_count?.toString() || '0'} sub="Needs review by operations team" color="text-danger" icon={<AlertTriangle />} />
+        <StatCard title="Predicted Risk" value="$1.2M" sub="Potential loss exposure" color="text-secondary" icon={<Zap />} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -78,8 +78,8 @@ export default function DashboardOverview() {
         <div className="lg:col-span-2 glass-morphism p-8 rounded-3xl border border-white/5 h-[400px] flex flex-col">
           <div className="flex justify-between items-center mb-8">
             <div>
-              <h3 className="text-xl font-bold text-white">Trust Evolution vs Anomalies</h3>
-              <p className="text-sm text-white/40">Correlation of truth-scores and event consistency</p>
+              <h3 className="text-xl font-bold text-white">Live Dashboard</h3>
+              <p className="text-sm text-white/40">Track trust and alerts in real time</p>
             </div>
             <div className="flex gap-4">
               <div className="flex items-center gap-2">
@@ -88,7 +88,7 @@ export default function DashboardOverview() {
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-danger" />
-                <span className="text-xs text-white/60">Anomalies</span>
+                <span className="text-xs text-white/60">Alerts</span>
               </div>
             </div>
           </div>
@@ -118,12 +118,12 @@ export default function DashboardOverview() {
         {/* Side Info Cards */}
         <div className="space-y-6">
            <div className="glass-morphism p-6 rounded-2xl border border-white/5 space-y-4">
-             <h4 className="text-sm font-bold text-white uppercase tracking-widest opacity-40">System Signals</h4>
+             <h4 className="text-sm font-bold text-white tracking-[0.08em] opacity-40">Recent signals</h4>
              <div className="space-y-4">
-                <SignalItem label="Impossible Scan Detect" time="2m ago" status="Critical" />
-                <SignalItem label="Supplier Trust Drop" time="14m ago" status="Warning" />
-                <SignalItem label="New Whisper Signature" time="1h ago" status="Healthy" />
-                <SignalItem label="Suez Future Simulated" time="3h ago" status="Healthy" />
+               <SignalItem label="Reality Check alert" time="2m ago" status="Critical" />
+               <SignalItem label="Partner Scorecard update" time="14m ago" status="Warning" />
+               <SignalItem label="Secure Risk Sharing note" time="1h ago" status="Healthy" />
+               <SignalItem label="Future Risk Simulator done" time="3h ago" status="Healthy" />
              </div>
            </div>
 
@@ -131,10 +131,10 @@ export default function DashboardOverview() {
               <div className="absolute inset-0 bg-gradient-to-br from-primary to-secondary opacity-80 rounded-2xl" />
               <div className="relative p-6 space-y-4">
                  <Globe className="text-white w-10 h-10 mb-2 group-hover:rotate-12 transition-transform" />
-                 <h4 className="text-lg font-bold text-white italic">"Simulate Your Future"</h4>
-                 <p className="text-white/80 text-xs">Run the Future Dreaming Engine to identify ripple effects of regional disruptions.</p>
+                 <h4 className="text-lg font-bold text-white italic">Future Risk Simulator</h4>
+                 <p className="text-white/80 text-xs">Run quick what-if checks to see likely delays and impact.</p>
                  <Link href="/dashboard/dreaming" className="block w-full py-3 bg-white/20 hover:bg-white/30 text-white rounded-xl font-bold text-xs backdrop-blur-md transition-all text-center">
-                   LAUNCH DREAMING HUB
+                   Open risk simulator
                  </Link>
               </div>
            </div>
@@ -144,16 +144,16 @@ export default function DashboardOverview() {
       {/* Modules Quick Bar */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
          <Link href="/dashboard/ghost" className="block">
-           <ModuleLink label="Ghost Forensics" icon={<TrendingUp />} count="4 Open Cases" color="bg-orange-500/10 text-orange-500" />
+           <ModuleLink label="Inventory Mismatch Checker" icon={<TrendingUp />} count="4 open cases" color="bg-orange-500/10 text-orange-500" />
          </Link>
          <Link href="/dashboard/whisper" className="block">
-           <ModuleLink label="Whisper Alerts" icon={<Users />} count="128 Patterns" color="bg-blue-500/10 text-blue-500" />
+           <ModuleLink label="Secure Risk Sharing" icon={<Users />} count="128 shared patterns" color="bg-blue-500/10 text-blue-500" />
          </Link>
          <Link href="/dashboard/memory" className="block">
-           <ModuleLink label="Memory Capsules" icon={<Box />} count="2,491 Tracked" color="bg-purple-500/10 text-purple-500" />
+           <ModuleLink label="Product Journey" icon={<Box />} count="2,491 products tracked" color="bg-purple-500/10 text-purple-500" />
          </Link>
          <Link href="/dashboard/causality" className="block">
-           <ModuleLink label="Causality Reasoner" icon={<Search />} count="Ready" color="bg-green-500/10 text-green-500" />
+           <ModuleLink label="Root Cause Finder" icon={<Search />} count="ready" color="bg-green-500/10 text-green-500" />
          </Link>
       </div>
     </div>
@@ -195,7 +195,7 @@ function SignalItem({ label, time, status }: { label: string, time: string, stat
           <p className="text-[10px] text-white/30">{time}</p>
         </div>
       </div>
-      <span className={cn("text-[10px] font-black uppercase tracking-tighter", statusColors[status].split(' ')[1])}>
+      <span className={cn("text-[10px] font-black tracking-[0.06em]", statusColors[status].split(' ')[1])}>
         {status}
       </span>
     </div>

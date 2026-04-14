@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Real Weave",
-  description: "Cognitive supply chain intelligence platform",
+  title: "Real Weave Easy",
+  description: "Simple supply chain monitoring and risk alerts",
 };
 
 export default function RootLayout({

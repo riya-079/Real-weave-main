@@ -53,6 +53,20 @@ def init_db():
             db.commit()
             print("Seeded demo events")
 
+        existing_workflows = {workflow.anomaly_id for workflow in db.query(db_models.AnomalyWorkflow).all()}
+        for anomaly in db.query(db_models.Anomaly).all():
+            if anomaly.id not in existing_workflows:
+                db.add(
+                    db_models.AnomalyWorkflow(
+                        anomaly_id=anomaly.id,
+                        status="open",
+                        owner="",
+                        note="",
+                        archived=0,
+                    )
+                )
+        db.commit()
+
         db.close()
         return
     
@@ -191,6 +205,19 @@ def init_db():
         )
         db.add(anom)
     
+    db.commit()
+
+    for anomaly in db.query(db_models.Anomaly).all():
+        db.add(
+            db_models.AnomalyWorkflow(
+                anomaly_id=anomaly.id,
+                status="open",
+                owner="",
+                note="",
+                archived=0,
+            )
+        )
+
     db.commit()
     
     # Create Sentiment

@@ -8,16 +8,16 @@ import { cn } from '@/lib/utils';
 import { getCurrentUser, isAuthenticated, signOutUser } from '@/lib/auth';
 
 const navItems = [
-  { icon: LayoutDashboard, label: 'Intelligence', href: '/dashboard' },
-  { icon: AlertCircle, label: 'Impossible Events', href: '/dashboard/impossible' },
-  { icon: Box, label: 'Memory Capsules', href: '/dashboard/memory' },
-  { icon: Zap, label: 'Future Dreaming', href: '/dashboard/dreaming' },
-  { icon: Share2, label: 'Whisper Network', href: '/dashboard/whisper' },
-  { icon: Ghost, label: 'Ghost Forensics', href: '/dashboard/ghost' },
-  { icon: Search, label: 'Causality Explorer', href: '/dashboard/causality' },
-  { icon: ShieldCheck, label: 'Trust DNA', href: '/dashboard/trust' },
-  { icon: Network, label: 'Digital Twin', href: '/dashboard/digital-twin' },
-  { icon: Target, label: 'Negotiation Center', href: '/dashboard/negotiation' },
+  { icon: LayoutDashboard, label: 'Live Dashboard', href: '/dashboard' },
+  { icon: AlertCircle, label: 'Reality Check', href: '/dashboard/impossible' },
+  { icon: Box, label: 'Product Journey', href: '/dashboard/memory' },
+  { icon: Zap, label: 'Future Risk Simulator', href: '/dashboard/dreaming' },
+  { icon: Share2, label: 'Secure Risk Sharing', href: '/dashboard/whisper' },
+  { icon: Ghost, label: 'Inventory Mismatch Checker', href: '/dashboard/ghost' },
+  { icon: Search, label: 'Root Cause Finder', href: '/dashboard/causality' },
+  { icon: ShieldCheck, label: 'Partner Scorecard', href: '/dashboard/trust' },
+  { icon: Network, label: 'Partner Trust Map', href: '/dashboard/digital-twin' },
+  { icon: Target, label: 'Action Planner', href: '/dashboard/negotiation' },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -58,7 +58,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center glow-shadow-primary group-hover:scale-105 transition-transform">
               <Network className="text-white w-6 h-6" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-white">REAL WEAVE</span>
+            <span className="text-xl font-bold tracking-tight text-white">Real Weave Easy</span>
           </Link>
           
           <div className="space-y-1">
@@ -92,7 +92,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
                 <span className="text-xs font-bold text-accent uppercase tracking-widest">System Active</span>
              </div>
-             <p className="text-[10px] text-white/30 font-mono">NODE-ETH-0X23...STABLE</p>
+             <p className="text-[10px] text-white/30 font-mono">Live monitoring active</p>
           </div>
         </div>
       </aside>
@@ -102,12 +102,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
          {/* Top Header */}
          <header className="sticky top-0 z-10 glass-morphism border-b border-white/5 px-10 py-4 flex justify-between items-center backdrop-blur-xl">
            <h2 className="text-lg font-bold text-white/80">
-             {navItems.find(n => n.href === pathname)?.label || 'Intelligence Hub'}
+             {navItems.find(n => n.href === pathname)?.label || 'Live Dashboard'}
            </h2>
            <div className="flex items-center gap-6">
               <div className="flex items-center gap-2 px-4 py-2 glass-morphism rounded-lg border border-white/5">
                 <Search size={16} className="text-white/30" />
-                <input type="text" placeholder="Search shipments, signals, causes..." className="bg-transparent border-none outline-none text-sm text-white w-64" />
+                <input type="text" placeholder="Search shipments, alerts, and causes..." className="bg-transparent border-none outline-none text-sm text-white w-64" />
               </div>
                 <Link href="/dashboard/profile" className="w-10 h-10 rounded-full bg-gradient-to-tr from-accent to-primary p-[1px]">
                  <div className="w-full h-full rounded-full bg-background flex items-center justify-center overflow-hidden">

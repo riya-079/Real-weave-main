@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 class Organization(BaseModel):
@@ -32,6 +32,14 @@ class Anomaly(BaseModel):
     root_causes: List[str]
     confidence: float
 
+
+class AnomalyWorkflow(BaseModel):
+    anomaly_id: str
+    status: str = "open"
+    owner: str = ""
+    note: str = ""
+    archived: bool = False
+
 class Shipment(BaseModel):
     id: str
     origin: str
@@ -49,6 +57,23 @@ class FutureScenario(BaseModel):
     probability: float
     impact_score: float
     ripple_effects: List[str] = Field(default_factory=list)
+
+class DashboardSetting(BaseModel):
+    key: str
+    value: Dict[str, Any] = Field(default_factory=dict)
+
+
+class SharedRiskPattern(BaseModel):
+    id: str
+    anomaly_id: Optional[str] = None
+    title: str
+    details: str
+    shared_by: str = "network"
+    visibility: str = "network"
+    status: str = "shared"
+    confidence: float = 0.0
+    partner_count: int = 0
+    created_at: Optional[datetime] = None
 
 class TrustDNA(BaseModel):
     org_id: str

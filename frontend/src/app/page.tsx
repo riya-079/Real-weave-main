@@ -29,10 +29,10 @@ export default function LandingPage() {
           <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center glow-shadow-primary">
             <Network className="text-white w-6 h-6" />
           </div>
-          <span className="text-2xl font-bold tracking-tight text-white">REAL WEAVE</span>
+          <span className="text-2xl font-bold tracking-tight text-white">Real Weave Easy</span>
         </div>
         <div className="hidden md:flex items-center gap-8 text-white/60 font-medium">
-          <a href="#features" className="hover:text-primary transition-colors">Intelligence</a>
+          <a href="#features" className="hover:text-primary transition-colors">Features</a>
           <a href="#vision" className="hover:text-primary transition-colors">Vision</a>
           <a href="#modules" className="hover:text-primary transition-colors">Modules</a>
           <Link href="/login" className="hover:text-primary transition-colors">Login</Link>
@@ -55,30 +55,30 @@ export default function LandingPage() {
             transition={{ duration: 0.8 }}
           >
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-morphism border border-primary/20 text-primary text-sm font-bold tracking-wider mb-6">
-              <Zap size={14} className="animate-pulse" /> NEXT-GEN COGNITIVE SUPPLY CHAIN
+              <Zap size={14} className="animate-pulse" /> SIMPLE SMART SUPPLY CHAIN
             </div>
             <h1 className="text-6xl md:text-8xl font-black mb-8 tracking-tighter text-white leading-[1.1]">
-              The Supply Chain <br />
+              A Supply Chain <br />
               <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent italic">
-                That Remembers & Dreams
+                That Remembers and Predicts
               </span>
             </h1>
             <p className="text-xl md:text-2xl text-white/60 max-w-3xl mx-auto mb-12 font-medium">
-              Weaving truth, memory, and foresight into every movement of goods. Real Weave detects the impossible, remembers every life story, and simulates alternate futures.
+              Track goods in real time, detect unusual events, see full product history, and predict future risks. Built to be easy for every user.
             </p>
             <div className="flex flex-col md:flex-row gap-6 justify-center">
               <button
                 onClick={() => router.push(isAuthenticated() ? '/dashboard' : '/login')}
                 className="px-10 py-4 bg-white text-background rounded-xl font-bold text-lg hover:scale-105 transition-all"
               >
-                Launch Executive Dashboard
+                Open Live Dashboard
               </button>
               <button
                 type="button"
                 onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
                 className="px-10 py-4 glass-morphism border border-white/20 text-white rounded-xl font-bold text-lg hover:bg-white/10 transition-all"
               >
-                Watch Intelligence Demo
+                Explore Features
               </button>
             </div>
           </motion.div>
@@ -87,23 +87,23 @@ export default function LandingPage() {
         <div className="mt-32 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <IntelligenceCard 
             icon={<Brain className="text-primary" />}
-            title="Truth-Verification Layer"
-            description="Our reality consistency engine detects logical and physical impossibilities across your global network in real-time."
+            title="Reality Check"
+            description="Finds impossible shipment activity, like unusual travel speed, and flags it quickly."
           />
           <IntelligenceCard 
             icon={<Shield className="text-accent" />}
-            title="Product Memory Capsule"
-            description="Every item carries its behavioral history, stress profile, and custody story from origin to the final mile."
+            title="Product Journey"
+            description="Stores complete product history from source to delivery, including handling and location updates."
           />
           <IntelligenceCard 
             icon={<Cpu className="text-secondary" />}
-            title="Future Dreaming Engine"
-            description="Predictive simulations that imagine most likely, most dangerous, and hidden ripple-effect futures."
+            title="Future Risk Simulator"
+            description="Runs what-if scenarios so you can prepare early for delays and disruptions."
           />
           <IntelligenceCard 
             icon={<Target className="text-warning" />}
-            title="Adaptive Negotiation"
-            description="AI operations strategist that recommends recovery actions and negotiates alternate paths forward."
+            title="Action Planner"
+            description="Suggests practical next steps when risks are detected in the supply chain."
           />
         </div>
       </div>
@@ -115,19 +115,19 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row items-center gap-16">
             <div className="flex-1">
               <h2 className="text-4xl md:text-5xl font-bold mb-6 text-white leading-tight">
-                Beyond Tracking. <br />
-                <span className="text-primary">Deep Cognitive Forensic Intelligence.</span>
+                Beyond Basic Tracking. <br />
+                <span className="text-primary">Clear Insights You Can Act On.</span>
               </h2>
               <p className="text-lg text-white/50 mb-8 leading-relaxed">
-                Most systems track what happened. Real Weave understands why it happened and what should never have occurred. Our modules use forensic reasoning to expose hidden risks and ghost inventory before they impact your bottom line.
+                Most systems only show data. Real Weave Easy explains what happened, why it happened, and what may happen next so teams can respond faster.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FeatureItem icon={<Activity />} text="Impossible Event Detection" />
-                <FeatureItem icon={<Globe />} text="Emotional Supply Chain Map" />
-                <FeatureItem icon={<Lock />} text="Whisper Network Collective" />
-                <FeatureItem icon={<Eye />} text="Reverse Causality Explorer" />
-                <FeatureItem icon={<Ghost />} text="Ghost Inventory Forensics" />
-                <FeatureItem icon={<ShieldCheck />} text="Supplier Trust DNA" />
+                <FeatureItem icon={<Activity />} text="Reality Check" />
+                <FeatureItem icon={<Globe />} text="Partner Trust Map" />
+                <FeatureItem icon={<Lock />} text="Secure Risk Sharing" />
+                <FeatureItem icon={<Eye />} text="Root Cause Finder" />
+                <FeatureItem icon={<Ghost />} text="Inventory Mismatch Checker" />
+                <FeatureItem icon={<ShieldCheck />} text="Partner Scorecard" />
               </div>
             </div>
             <div className="flex-1 w-full aspect-square relative">
@@ -144,10 +144,10 @@ export default function LandingPage() {
 
       {/* CTA Footer */}
       <footer className="py-20 border-t border-white/5 bg-background/50 relative z-10 text-center">
-        <h3 className="text-3xl font-bold text-white mb-4">Ready to weave intelligence?</h3>
-        <p className="text-white/40 mb-10">Start your journey into the futuristic world of autonomous supply chain cognitive systems.</p>
+        <h3 className="text-3xl font-bold text-white mb-4">Ready to simplify your supply chain?</h3>
+        <p className="text-white/40 mb-10">Start using clear, real-time insights your whole team can understand.</p>
         <div className="flex gap-4 justify-center">
-          <span className="text-white/20 text-sm">Real Weave v1.0.0</span>
+          <span className="text-white/20 text-sm">Real Weave Easy v1.0.0</span>
           <span className="text-white/20 text-sm">© 2026 Deep Intelligence Labs</span>
         </div>
       </footer>
