@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, Shield, Zap, TrendingUp, AlertTriangle, Users, Box, Globe, Search } from 'lucide-react';
 import Link from 'next/link';
 import { 
@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import { getOverview, getShipments, getAnomalies } from '@/lib/api';
+import { useLiveRefresh } from '@/lib/useLiveRefresh';
 
 const data = [
   { name: 'Mon', trust: 85, anomalies: 2 },
@@ -27,7 +28,46 @@ export default function DashboardOverview() {
   const [shipments, setShipments] = useState<any[]>([]);
   const [anomalies, setAnomalies] = useState<any[]>([]);
 
+  const [mounted, setMounted] = useState(false);
+  const [liveSignals, setLiveSignals] = useState<any[]>([
+    { label: "Reality Check alert", time: "Just now", status: "Critical" },
+    { label: "Partner Scorecard update", time: "14m ago", status: "Warning" },
+    { label: "Secure Risk Sharing note", time: "1h ago", status: "Healthy" },
+    { label: "Future Risk Simulator done", time: "3h ago", status: "Healthy" },
+  ]);
+
+  const normalizeStatus = (status: any): 'Critical' | 'Warning' | 'Healthy' => {
+    if (!status) return 'Healthy';
+    const s = String(status).toLowerCase();
+    if (s.includes('critical') || s.includes('danger') || s.includes('error')) return 'Critical';
+    if (s.includes('warning') || s.includes('alert')) return 'Warning';
+    return 'Healthy';
+  };
+
+  useLiveRefresh(
+    () => {}, // Overview re-fetch could be added here if needed
+    (signals) => {
+      const newItems = signals.map(s => ({
+        label: `${s.metric} Pulse: ${s.id}`,
+        time: "Real-time",
+        status: normalizeStatus(s.status),
+        value: s.value
+      }));
+      setLiveSignals(prev => [...newItems, ...prev].slice(0, 4));
+    },
+    (event) => {
+      const newItem = {
+        label: event.title,
+        time: "Intelligence",
+        status: normalizeStatus(event.severity),
+        value: event.source
+      };
+      setLiveSignals(prev => [newItem, ...prev].slice(0, 4));
+    }
+  );
+
   useEffect(() => {
+    setMounted(true);
     const fetchData = async () => {
       try {
         const [overviewData, shipmentsData, anomaliesData] = await Promise.all([
@@ -92,26 +132,28 @@ export default function DashboardOverview() {
               </div>
             </div>
           </div>
-          <div className="flex-1 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data}>
-                <defs>
-                  <linearGradient id="colorTrust" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                <XAxis dataKey="name" stroke="#ffffff20" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#ffffff20" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}
-                  itemStyle={{ color: '#fff' }}
-                />
-                <Area type="monotone" dataKey="trust" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorTrust)" />
-                <Area type="monotone" dataKey="anomalies" stroke="#ef4444" strokeWidth={2} fillOpacity={0.1} fill="#ef4444" />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="flex-1 w-full relative min-h-[300px]">
+            {mounted && (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={data}>
+                  <defs>
+                    <linearGradient id="colorTrust" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                  <XAxis dataKey="name" stroke="#ffffff20" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#ffffff20" fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}
+                    itemStyle={{ color: '#fff' }}
+                  />
+                  <Area type="monotone" dataKey="trust" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorTrust)" />
+                  <Area type="monotone" dataKey="anomalies" stroke="#ef4444" strokeWidth={2} fillOpacity={0.1} fill="#ef4444" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
@@ -119,12 +161,25 @@ export default function DashboardOverview() {
         <div className="space-y-6">
            <div className="glass-morphism p-6 rounded-2xl border border-white/5 space-y-4">
              <h4 className="text-sm font-bold text-white tracking-[0.08em] opacity-40">Recent signals</h4>
-             <div className="space-y-4">
-               <SignalItem label="Reality Check alert" time="2m ago" status="Critical" />
-               <SignalItem label="Partner Scorecard update" time="14m ago" status="Warning" />
-               <SignalItem label="Secure Risk Sharing note" time="1h ago" status="Healthy" />
-               <SignalItem label="Future Risk Simulator done" time="3h ago" status="Healthy" />
-             </div>
+              <div className="space-y-4">
+                <AnimatePresence initial={false}>
+                  {liveSignals.map((signal, idx) => (
+                    <motion.div
+                      key={`${signal.label}-${idx}`}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="transition-all"
+                    >
+                      <SignalItem 
+                        label={signal.label} 
+                        time={signal.time} 
+                        status={signal.status} 
+                        value={signal.value}
+                      />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
            </div>
 
            <div className="relative overflow-hidden group">
@@ -179,23 +234,29 @@ function StatCard({ title, value, sub, color, icon }: { title: string, value: st
   );
 }
 
-function SignalItem({ label, time, status }: { label: string, time: string, status: 'Critical' | 'Warning' | 'Healthy' }) {
+function SignalItem({ label, time, status, value }: { label: string, time: string, status: 'Critical' | 'Warning' | 'Healthy', value?: string }) {
   const statusColors = {
     Critical: 'bg-danger text-danger',
     Warning: 'bg-warning text-warning',
     Healthy: 'bg-accent text-accent'
   };
   
+  const colors = statusColors[status] || statusColors.Healthy;
+  const parts = colors.split(' ');
+  
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between group/signal">
       <div className="flex items-center gap-3">
-        <div className={cn("w-1.5 h-1.5 rounded-full", statusColors[status].split(' ')[0])} />
+        <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", parts[0])} />
         <div>
-          <p className="text-sm font-bold text-white/80">{label}</p>
-          <p className="text-[10px] text-white/30">{time}</p>
+          <p className="text-sm font-bold text-white/80 group-hover/signal:text-primary transition-colors">{label}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-[10px] text-white/30">{time}</p>
+            {value && <p className="text-[10px] text-white/50 font-mono bg-white/5 px-1.5 rounded truncate max-w-[100px]">{value}</p>}
+          </div>
         </div>
       </div>
-      <span className={cn("text-[10px] font-black tracking-[0.06em]", statusColors[status].split(' ')[1])}>
+      <span className={cn("text-[10px] font-black tracking-[0.06em]", parts[1])}>
         {status}
       </span>
     </div>

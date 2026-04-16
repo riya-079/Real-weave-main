@@ -3,11 +3,14 @@ type LiveMessage = {
   topic?: string;
   action?: string;
   entity_id?: string;
+  signals?: any[];
+  event?: any;
+  signal?: any;
   at?: string;
 };
 
 function getLiveSocketUrl(): string {
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
   if (apiBase.startsWith('https://')) {
     return `${apiBase.replace('https://', 'wss://')}/ws/live`;
   }
@@ -20,7 +23,13 @@ export function connectLiveUpdates(onMessage: (message: LiveMessage) => void): (
   let closedManually = false;
 
   const connect = () => {
-    socket = new WebSocket(getLiveSocketUrl());
+    const url = getLiveSocketUrl();
+    console.log(`[WebSocket] Connecting to ${url}...`);
+    socket = new WebSocket(url);
+
+    socket.onopen = () => {
+      console.log('[WebSocket] Connection established');
+    };
 
     socket.onmessage = (event) => {
       try {
@@ -31,13 +40,17 @@ export function connectLiveUpdates(onMessage: (message: LiveMessage) => void): (
       }
     };
 
-    socket.onclose = () => {
+    socket.onclose = (event) => {
       if (!closedManually) {
-        reconnectTimer = window.setTimeout(connect, 1500);
+        console.warn(`[WebSocket] Connection closed (code: ${event.code}). Reconnecting in 2s...`);
+        reconnectTimer = window.setTimeout(connect, 2000);
+      } else {
+        console.log('[WebSocket] Connection closed manually');
       }
     };
 
-    socket.onerror = () => {
+    socket.onerror = (err) => {
+      console.error('[WebSocket] Error detected:', err);
       socket?.close();
     };
   };

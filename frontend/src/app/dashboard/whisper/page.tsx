@@ -1,27 +1,28 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Share2, Lock, Users, Zap, EyeOff } from 'lucide-react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Share2, Lock, Users, Zap, EyeOff, Shield, Radio, MessageSquare, Globe, Activity, Fingerprint, ShieldAlert, Send } from 'lucide-react';
 import { createSharedRiskPattern, getAnomalies, getOrganizations, getSharedRiskPatterns } from '@/lib/api';
 import { useLiveRefresh } from '@/lib/useLiveRefresh';
+import { cn } from '@/lib/utils';
 
-type Signal = {
+interface Signal {
   id: string;
   type: string;
   origin: string;
   confidence: number;
   details: string;
-};
+}
 
-type Partner = {
+interface Partner {
   id: string;
   name: string;
   trust: number;
   contribution: string;
-};
+}
 
-type SharedRiskPattern = {
+interface SharedRiskPattern {
    id: string;
    anomaly_id?: string | null;
    title: string;
@@ -32,215 +33,235 @@ type SharedRiskPattern = {
    confidence: number;
    partner_count: number;
    created_at?: string;
-};
+}
 
 export default function WhisperNetwork() {
-   const [visibleCount, setVisibleCount] = useState(2);
    const [signatures, setSignatures] = useState<Signal[]>([]);
    const [partners, setPartners] = useState<Partner[]>([]);
-    const [history, setHistory] = useState<SharedRiskPattern[]>([]);
-    const [selectedSignalId, setSelectedSignalId] = useState<string>('');
-    const [shareState, setShareState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+   const [history, setHistory] = useState<SharedRiskPattern[]>([]);
+   const [selectedSignalId, setSelectedSignalId] = useState<string>('');
+   const [shareState, setShareState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+   const [loading, setLoading] = useState(true);
 
    const loadData = useCallback(async () => {
       try {
-             const [anomalies, organizations, sharedHistory] = await Promise.all([
-                getAnomalies(),
-                getOrganizations(),
-                getSharedRiskPatterns(),
-             ]);
+         setLoading(true);
+         const [anomalies, organizations, sharedHistory] = await Promise.all([
+            getAnomalies(),
+            getOrganizations(),
+            getSharedRiskPatterns(),
+         ]);
 
-             const nextSignals = anomalies.map((anomaly: any, index: number) => ({
-             id: anomaly.id,
-             type: anomaly.type.replace(/([A-Z])/g, ' $1').trim(),
-             origin: index === 0 ? 'Private partner A' : index === 1 ? 'Shared by network' : 'Private partner B',
-             confidence: anomaly.confidence,
-             details: anomaly.explanation,
-                }));
-             setSignatures(nextSignals);
-             setSelectedSignalId((current) => current || nextSignals[0]?.id || '');
-
-         setPartners(
-           organizations.map((organization: any) => ({
-             id: organization.id,
-             name: organization.name,
-             trust: organization.trust_score,
-             contribution: organization.trust_score >= 0.9 ? 'High' : organization.trust_score >= 0.8 ? 'Medium' : 'Low',
-           }))
-         );
+         const nextSignals = anomalies.map((anomaly: any, i: number) => ({
+            id: anomaly.id,
+            type: anomaly.type,
+            origin: i % 2 === 0 ? 'Encrypted Node A' : 'Private Peer',
+            confidence: anomaly.confidence,
+            details: anomaly.explanation,
+         }));
+         
+         setSignatures(nextSignals);
+         if (nextSignals.length > 0 && !selectedSignalId) setSelectedSignalId(nextSignals[0].id);
+         
+         setPartners(organizations.map((org: any) => ({
+            id: org.id,
+            name: org.name,
+            trust: org.trust_score,
+            contribution: org.trust_score > 0.8 ? 'High' : 'Active',
+         })));
          setHistory(sharedHistory);
       } catch (error) {
-         console.error('Failed to load shared risk data:', error);
+         console.error('Failed to load whisper network:', error);
+      } finally {
+         setLoading(false);
       }
-   }, []);
+   }, [selectedSignalId]);
 
-   useEffect(() => {
-      loadData();
-   }, [loadData]);
-
-   useLiveRefresh(loadData);
-
-   const visiblePartners = partners.slice(0, Math.max(4, visibleCount));
-   const selectedSignal = signatures.find((signal) => signal.id === selectedSignalId) ?? signatures[0];
-
-   const shareSelectedPattern = async () => {
-      if (!selectedSignal) {
-         return;
+   useEffect(() => { loadData(); }, [loadData]);
+   
+   useLiveRefresh(
+      loadData,
+      undefined,
+      undefined,
+      (newSignal: any) => {
+         if (newSignal && newSignal.id) {
+            setSignatures(prev => {
+               // Prevent duplicates
+               if (prev.some(s => s.id === newSignal.id)) return prev;
+               return [newSignal, ...prev].slice(0, 15);
+            });
+         }
       }
+   );
 
+   const selectedSignal = signatures.find(s => s.id === selectedSignalId) || (signatures.length > 0 ? signatures[0] : null);
+
+   const sharePattern = async () => {
+      if (!selectedSignal) return;
       setShareState('saving');
       try {
          await createSharedRiskPattern({
-            id: `srp-${Date.now()}`,
+            id: `pattern-${Date.now()}`,
             anomaly_id: selectedSignal.id,
             title: selectedSignal.type,
             details: selectedSignal.details,
-            shared_by: 'real-weave-easy',
+            shared_by: 'REAL_WEAVE_SYSTEM',
             visibility: 'network',
-            status: 'shared',
+            status: 'broadcasting',
             confidence: selectedSignal.confidence,
             partner_count: partners.length,
          });
          setShareState('saved');
+         setTimeout(() => setShareState('idle'), 3000);
       } catch (error) {
-         console.error('Failed to share risk pattern:', error);
          setShareState('error');
       }
    };
 
-  return (
-    <div className="space-y-10">
-      <div className="flex flex-col md:flex-row gap-8 items-center bg-gradient-to-r from-purple-500/10 to-blue-500/10 p-10 rounded-3xl border border-white/5 relative overflow-hidden">
-         <div className="flex-1 space-y-4 relative z-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-purple-500/20 rounded-full border border-purple-500/30 text-purple-400 text-[10px] font-black tracking-[0.08em]">
-               Private Risk Sharing
-            </div>
-            <h2 className="text-4xl font-black text-white italic leading-tight">SECURE RISK SHARING</h2>
-            <p className="text-white/50 max-w-lg leading-relaxed">
-               Share risk patterns with partner organizations without exposing sensitive business data.
-               Learn from others while keeping your private details protected.
-            </p>
-            <div className="flex gap-4 pt-2">
-               <button
-                  onClick={shareSelectedPattern}
-                  disabled={!selectedSignal || shareState === 'saving'}
-                  className="px-8 py-3 bg-white text-background rounded-xl font-bold flex items-center gap-2 hover:scale-105 transition-all text-sm disabled:opacity-60"
-               >
-                  <Share2 size={18} /> {shareState === 'saving' ? 'SHARING...' : 'SHARE RISK PATTERN'}
-               </button>
-               <Link href="/dashboard/settings" className="px-8 py-3 glass-morphism border border-white/10 text-white rounded-xl font-bold hover:bg-white/5 transition-all text-sm">
-                  SHARING SETTINGS
-               </Link>
-            </div>
-            {shareState === 'saved' ? <p className="text-xs text-accent font-bold">Pattern shared and persisted to backend.</p> : null}
-            {shareState === 'error' ? <p className="text-xs text-danger font-bold">Share failed. Try again.</p> : null}
+   if (loading && signatures.length === 0) {
+      return (
+         <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+            <Radio className="text-secondary animate-pulse" size={64} />
+            <p className="text-white/40 font-mono text-xs uppercase tracking-widest animate-pulse">Scanning encrypted frequencies...</p>
          </div>
-         <div className="w-full md:w-1/3 aspect-square relative flex items-center justify-center">
-            <div className="absolute inset-0 bg-purple-500/5 rounded-full animate-pulse" />
-            <div className="absolute inset-10 border border-purple-500/20 rounded-full animate-spin [animation-duration:40s]" />
-            <div className="absolute inset-20 border border-blue-500/20 rounded-full animate-spin [animation-duration:25s] direction-reverse" />
-            <Share2 className="w-24 h-24 text-purple-400 glow-shadow-primary opacity-40" />
-         </div>
-         
-         {/* Background Decoration */}
-         <div className="absolute bottom-[-100px] left-[-100px] w-96 h-96 bg-purple-500/10 blur-[120px] rounded-full pointer-events-none" />
-      </div>
+      );
+   }
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-         <div className="glass-morphism rounded-3xl border border-white/5 p-8 flex flex-col">
-            <div className="flex justify-between items-center mb-8">
-               <h3 className="text-xl font-bold text-white flex items-center gap-3">
-                  <Users className="text-primary" /> Active Partners
-               </h3>
-               <span className="text-xs text-white/30 font-bold">{partners.length} organizations active</span>
-            </div>
-            <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar max-h-[400px]">
-               {visiblePartners.map((partner) => (
-                 <PartnerItem key={partner.id} name={partner.name} trust={partner.trust} contribution={partner.contribution} />
-               ))}
-            </div>
-         </div>
-
-         <div className="glass-morphism rounded-3xl border border-white/5 p-8 flex flex-col">
-            <div className="flex justify-between items-center mb-8">
-               <h3 className="text-xl font-bold text-white flex items-center gap-3">
-                  <Zap className="text-warning" /> Shared Risk Signals
-               </h3>
-               <div className="flex items-center gap-2">
-                  <Lock size={14} className="text-accent" />
-                  <span className="text-[10px] text-accent font-bold tracking-[0.08em]">End-to-end encrypted</span>
+   return (
+    <div className="space-y-8">
+      {/* Header Banner */}
+      <div className="relative p-10 rounded-[40px] border border-white/5 overflow-hidden bg-gradient-to-br from-secondary/20 to-primary/10">
+         <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-12">
+            <div className="space-y-4 max-w-xl text-center md:text-left">
+               <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
+                  <Lock size={12} className="text-secondary" />
+                  <span className="text-[9px] font-black text-white uppercase tracking-widest">End-to-End Encrypted Risk Relay</span>
+               </div>
+               <h2 className="text-5xl font-black text-white italic tracking-tighter uppercase leading-none">Whisper Network</h2>
+               <p className="text-white/60 font-medium italic leading-relaxed">
+                  Contribute and receive anonymized risk signatures from across the entire weave. 
+                  Learn from the failures of others without compromising proprietary data structures.
+               </p>
+               <div className="flex gap-4 pt-2 justify-center md:justify-start">
+                  <button 
+                     onClick={sharePattern}
+                     disabled={shareState === 'saving'}
+                     className="px-8 py-3 bg-white text-background rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:scale-105 transition-all glow-shadow-white"
+                  >
+                     {shareState === 'saving' ? 'Broadcasting...' : <><Send size={16} /> Broadcast Signal</>}
+                  </button>
+                  <button className="px-8 py-3 glass-morphism border border-white/10 rounded-2xl text-white font-black text-xs uppercase tracking-widest">
+                     Anonymity Tunnel
+                  </button>
                </div>
             </div>
-            <div className="space-y-4">
-                      {signatures.slice(0, visibleCount).map(sig => (
-                 <div key={sig.id} onClick={() => setSelectedSignalId(sig.id)} className="p-5 bg-white/5 rounded-2xl border border-white/5 group hover:bg-white/10 transition-all cursor-pointer">
-                    <div className="flex justify-between items-start mb-2">
-                       <div>
-                          <h4 className="text-sm font-bold text-white">{sig.type}</h4>
-                          <p className="text-[10px] text-white/30 font-mono italic">{sig.id} // ORIGIN: {sig.origin}</p>
-                       </div>
-                       <span className="text-[10px] bg-accent/10 text-accent px-2 py-0.5 rounded font-black">{(sig.confidence * 100).toFixed(0)}% MATCH</span>
-                    </div>
-                    <p className="text-xs text-white/60 leading-relaxed line-clamp-2">{sig.details}</p>
-                 </div>
-               ))}
+            
+            <div className="hidden md:block w-64 h-64 bg-secondary/10 rounded-full relative">
+               <motion.div animate={{ rotate: 360 }} transition={{ duration: 20, repeat: Infinity, ease: 'linear' }} className="absolute inset-0 border-2 border-dashed border-secondary/20 rounded-full" />
+               <motion.div animate={{ rotate: -360 }} transition={{ duration: 15, repeat: Infinity, ease: 'linear' }} className="absolute inset-8 border-2 border-dashed border-primary/20 rounded-full" />
+               <div className="absolute inset-0 flex items-center justify-center">
+                  <Radio size={64} className="text-secondary opacity-40" />
+               </div>
             </div>
-                  <button
-                     onClick={() => setVisibleCount((count) => Math.min(signatures.length, count + 1))}
-                     disabled={visibleCount >= signatures.length}
-                     className="mt-8 w-full py-3 border border-white/10 text-white/40 hover:text-white hover:bg-white/5 rounded-xl font-bold transition-all text-xs tracking-[0.08em] disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                      {visibleCount >= signatures.length ? 'All signals loaded' : 'Load More Signals'}
-            </button>
          </div>
+         {/* Background Glow */}
+         <div className="absolute top-[-50px] left-[-50px] w-96 h-96 bg-secondary/10 blur-[120px] rounded-full" />
       </div>
 
-      <div className="glass-morphism rounded-3xl border border-white/5 p-8">
-         <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-bold text-white">Shared pattern history</h3>
-            <span className="text-xs text-white/30 font-bold">{history.length} persisted records</span>
-         </div>
-         <div className="space-y-3 max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
-            {history.length === 0 ? (
-               <p className="text-sm text-white/40">No patterns shared yet.</p>
-            ) : (
-               history.map((item) => (
-                  <div key={item.id} className="p-4 bg-white/5 rounded-xl border border-white/5">
-                     <div className="flex justify-between gap-4 items-start">
-                        <div>
-                           <h4 className="text-sm font-bold text-white">{item.title}</h4>
-                           <p className="text-xs text-white/50 line-clamp-2">{item.details}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[calc(100vh-420px)]">
+         {/* Signal Stream */}
+         <div className="lg:col-span-5 flex flex-col gap-4">
+            <h3 className="text-[10px] font-black text-white/30 tracking-widest uppercase px-2">Incoming Signals</h3>
+            <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+               {signatures.map(s => (
+                  <motion.div
+                     key={s.id}
+                     onClick={() => setSelectedSignalId(s.id)}
+                     className={cn(
+                        "p-6 rounded-3xl border cursor-pointer transition-all relative group",
+                        selectedSignalId === s.id ? "glass-morphism border-secondary/40 glow-shadow-secondary" : "bg-white/2 border-white/5 hover:bg-white/5"
+                     )}
+                  >
+                     <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                           <Activity size={12} className="text-secondary" />
+                           <span className="text-[10px] font-mono text-white/20 uppercase">{s.origin}</span>
                         </div>
-                        <span className="text-[10px] font-black text-accent">{(item.confidence * 100).toFixed(0)}%</span>
+                        <span className="text-[9px] font-black text-accent uppercase tracking-widest">{(s.confidence * 100).toFixed(0)}% Confidence</span>
                      </div>
-                     <p className="text-[10px] text-white/30 mt-2">
-                        {item.shared_by} • {item.partner_count} partners • {item.status}
+                     <h4 className="text-lg font-black text-white italic tracking-tighter uppercase transition-colors group-hover:text-secondary">{s.type}</h4>
+                     <p className="text-xs text-white/40 font-medium italic line-clamp-2 mt-2">"{s.details}"</p>
+                  </motion.div>
+               ))}
+            </div>
+         </div>
+
+         {/* Signal Decryption / Deep Analysis */}
+         <div className="lg:col-span-7 glass-morphism rounded-[40px] border border-white/5 overflow-hidden flex flex-col bg-white/1">
+            {selectedSignal ? (
+               <div className="flex-1 overflow-y-auto p-10 space-y-12 custom-scrollbar">
+                  <div className="flex justify-between items-start">
+                     <div className="flex items-center gap-6">
+                        <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center text-secondary border border-white/10">
+                           <Fingerprint size={32} />
+                        </div>
+                        <div>
+                           <div className="text-[10px] font-black text-secondary uppercase tracking-widest mb-1">Decrypted Metadata</div>
+                           <h3 className="text-3xl font-black text-white italic tracking-tighter uppercase">{selectedSignal.type}</h3>
+                        </div>
+                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-8">
+                     <div className="p-6 bg-white/2 rounded-3xl border border-white/5 space-y-4">
+                        <h4 className="text-[10px] font-black text-white/20 uppercase tracking-widest flex items-center gap-2">
+                           <Globe size={12} /> Network Consensus
+                        </h4>
+                        <div className="flex -space-x-3">
+                           {partners.slice(0, 6).map(p => (
+                              <div key={p.id} className="w-10 h-10 rounded-full border-2 border-background bg-secondary/20 flex items-center justify-center text-xs text-white/40">
+                                 {p.name.charAt(0)}
+                              </div>
+                           ))}
+                           <div className="w-10 h-10 rounded-full border-2 border-background bg-white/10 flex items-center justify-center text-[10px] text-white/60 font-black">+24</div>
+                        </div>
+                        <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Shared by 32 organizations in the last 24h</p>
+                     </div>
+                     <div className="p-6 bg-white/2 rounded-3xl border border-white/5 space-y-2">
+                        <h4 className="text-[10px] font-black text-white/20 uppercase tracking-widest flex items-center gap-2">
+                           <ShieldAlert size={12} /> Threat Vector
+                        </h4>
+                        <div className="text-2xl font-black text-white uppercase italic">Critical Drift</div>
+                        <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                           <motion.div initial={{ width: 0 }} animate={{ width: `${selectedSignal.confidence * 100}%` }} className="h-full bg-secondary" />
+                        </div>
+                     </div>
+                  </div>
+
+                  <div className="space-y-4">
+                     <h4 className="text-xs font-black text-white/30 uppercase tracking-widest">Full Anonymized Report</h4>
+                     <p className="text-lg text-white/80 font-medium italic leading-relaxed bg-white/2 p-8 rounded-3xl border border-white/5">
+                        "{selectedSignal.details}"
                      </p>
                   </div>
-               ))
+
+                  <div className="flex gap-4">
+                     <button className="flex-1 py-4 bg-secondary/10 border border-secondary/20 text-secondary rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-secondary/20 transition-all">
+                        Request Verification
+                     </button>
+                     <button className="flex-1 py-4 bg-white/5 border border-white/10 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all">
+                        Append Internal Case
+                     </button>
+                  </div>
+               </div>
+            ) : (
+               <div className="flex-1 flex flex-col items-center justify-center text-white/20 gap-4">
+                  <Fingerprint size={48} />
+                  <p className="text-xs font-black tracking-widest uppercase italic">Select signal to decrypt</p>
+               </div>
             )}
          </div>
       </div>
-    </div>
-  );
-}
-
-function PartnerItem({ name, trust, contribution }: any) {
-  return (
-    <div className="flex items-center justify-between p-4 hover:bg-white/5 rounded-2xl transition-all">
-       <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center text-primary border border-white/10">
-             <EyeOff size={20} />
-          </div>
-          <div>
-             <h4 className="text-sm font-bold text-white">{name}</h4>
-             <p className="text-[10px] text-white/30 font-mono tracking-[0.08em]">{contribution} contribution</p>
-          </div>
-       </div>
-       <div className="text-right">
-          <p className="text-sm font-black text-accent">{trust.toFixed(2)}</p>
-               <p className="text-[10px] text-white/20 font-bold italic">Global trust</p>
-       </div>
     </div>
   );
 }

@@ -83,3 +83,21 @@ class TrustDNA(BaseModel):
     honesty: float
     consistency: float
     stability: float
+
+class GhostInventory(BaseModel):
+    id: str
+    shipment_id: str
+    digital_count: int
+    physical_prob: float
+    delta: int
+    confidence: float
+    last_scan: datetime
+
+class NegotiationSession(BaseModel):
+    id: str
+    anomaly_id: str
+    partner_id: str
+    status: str
+    strategy: str
+    history: List[Dict[str, Any]] = Field(default_factory=list)
+    updated_at: Optional[datetime] = None

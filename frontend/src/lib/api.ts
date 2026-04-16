@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 export async function fetchAPI(endpoint: string, options?: RequestInit) {
   try {
@@ -72,6 +72,28 @@ export const createSharedRiskPattern = (data: any) =>
 export const updateSharedRiskPattern = (id: string, data: any) =>
   fetchAPI(`/shared-risk-patterns/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 
-// Events
 export const getEvents = (shipmentId?: string) => 
   fetchAPI(shipmentId ? `/events?shipment_id=${shipmentId}` : '/events');
+
+// Ghost Inventory
+export const getGhostInventory = () => fetchAPI('/ghost-inventory');
+export const createGhostInventory = (data: any) => 
+  fetchAPI('/ghost-inventory', { method: 'POST', body: JSON.stringify(data) });
+
+// Negotiations
+export const getNegotiations = () => fetchAPI('/negotiations');
+export const createNegotiation = (data: any) => 
+  fetchAPI('/negotiations', { method: 'POST', body: JSON.stringify(data) });
+export const updateNegotiation = (id: string, data: any) => 
+  fetchAPI(`/negotiations/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+
+// Trust DNA
+export const getAllTrustDNA = () => fetchAPI('/trust-dna');
+export const getTrustDNA = (orgId: string) => fetchAPI(`/trust-dna/${orgId}`);
+export const createTrustDNA = (data: any) => 
+  fetchAPI('/trust-dna', { method: 'POST', body: JSON.stringify(data) });
+
+// Sentiment
+export const getSentiment = () => fetchAPI('/sentiment');
+export const updateSentiment = (data: any) => 
+  fetchAPI('/sentiment', { method: 'PUT', body: JSON.stringify(data) });

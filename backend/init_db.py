@@ -10,65 +10,68 @@ def init_db():
     
     db = SessionLocal()
     
-    # Check if data already exists
-    if db.query(db_models.Organization).first():
-        print("Database already initialized")
-        if not db.query(db_models.Event).first():
-            seeded_events = [
-                db_models.Event(
-                    id="e1",
-                    timestamp=datetime.utcnow() - timedelta(hours=2),
-                    type="Scan",
-                    location="London",
-                    org_id="org-2",
-                    value=None,
-                    event_metadata={},
-                    shipment_id="RW-ERR-01"
-                ),
-                db_models.Event(
-                    id="e2",
-                    timestamp=datetime.utcnow() - timedelta(hours=1),
-                    type="Scan",
-                    location="New York",
-                    org_id="org-1",
-                    value=None,
-                    event_metadata={},
-                    shipment_id="RW-ERR-01"
-                ),
-                db_models.Event(
-                    id="e3",
-                    timestamp=datetime.utcnow() - timedelta(minutes=45),
-                    type="StatusChange",
-                    location="Hamburg",
-                    org_id="org-4",
-                    value=None,
-                    event_metadata={"status": "In Transit"},
-                    shipment_id="RW-1001"
-                ),
-            ]
-
-            for event in seeded_events:
-                db.add(event)
-
-            db.commit()
-            print("Seeded demo events")
-
-        existing_workflows = {workflow.anomaly_id for workflow in db.query(db_models.AnomalyWorkflow).all()}
-        for anomaly in db.query(db_models.Anomaly).all():
-            if anomaly.id not in existing_workflows:
-                db.add(
-                    db_models.AnomalyWorkflow(
-                        anomaly_id=anomaly.id,
-                        status="open",
-                        owner="",
-                        note="",
-                        archived=0,
-                    )
-                )
+    # Seed Organizations if empty
+    if not db.query(db_models.Organization).first():
+        orgs_data = [
+            {"id": "org-1", "name": "Nexus Logistics", "type": "Transporter", "region": "North America", "trust": 0.92},
+            {"id": "org-2", "name": "Quantum Warehousing", "type": "Warehouse", "region": "Europe", "trust": 0.85},
+            {"id": "org-3", "name": "Apex Manufacturing", "type": "Manufacturer", "region": "Asia", "trust": 0.78},
+            {"id": "org-4", "name": "Global Freight X", "type": "Transporter", "region": "Global", "trust": 0.65},
+            {"id": "org-5", "name": "Silk Road Systems", "type": "Supplier", "region": "Asia", "trust": 0.88},
+        ]
+        for org_data in orgs_data:
+            db.add(db_models.Organization(
+                id=org_data["id"], name=org_data["name"], type=org_data["type"], 
+                region=org_data["region"], trust_score=org_data["trust"]))
         db.commit()
+        print("Seeded organizations")
 
-        db.close()
-        return
+    # Seed Shipments if empty
+    if not db.query(db_models.Shipment).first():
+        org_names = [o.name for o in db.query(db_models.Organization).all()]
+        for i in range(1, 11):
+            db.add(db_models.Shipment(
+                id=f"RW-{1000 + i}", origin=random.choice(org_names), 
+                destination=random.choice(org_names), 
+                status=random.choice(["In Transit", "Delivered", "Delayed", "Pending"]),
+                created_at=datetime.utcnow() - timedelta(days=random.randint(1, 10)),
+                trust_score=round(random.uniform(0.6, 0.99), 2),
+                events=[], anomaly_ids=[]))
+        db.commit()
+        print("Seeded shipments")
+
+    # Seed Ghost Inventory if empty
+    if not db.query(db_models.GhostInventory).first():
+        shipments = db.query(db_models.Shipment).all()
+        for i, s in enumerate(shipments[:5]):
+            db.add(db_models.GhostInventory(
+                id=f"ghost-{i+1}", shipment_id=s.id,
+                digital_count=random.randint(500, 1000),
+                physical_prob=round(random.uniform(0.7, 0.99), 2),
+                delta=random.randint(-15, 15),
+                confidence=round(random.uniform(0.6, 0.95), 2),
+                last_scan=datetime.utcnow() - timedelta(hours=random.randint(1, 24))))
+        db.commit()
+        print("Seeded ghost inventory")
+
+    # Seed Future Scenarios if empty
+    if not db.query(db_models.FutureScenario).first():
+        scenarios = [
+            {"id": "fs-1", "name": "Suez Blockage Ripple", "description": "Temporary blockage leads to 20-day backlog.", "probability": 0.15, "impact_score": 0.88, "ripple_effects": ["Fuel price spike", "Empty container shortage"]},
+            {"id": "fs-2", "name": "AI Routing Strike", "description": "Automated port systems face sync failure.", "probability": 0.08, "impact_score": 0.92, "ripple_effects": ["Manual fallback delays", "Trust degradation"]}
+        ]
+        for s in scenarios:
+            db.add(db_models.FutureScenario(**s))
+        db.commit()
+        print("Seeded future scenarios")
+
+    # Seed Events and Anomalies if empty...
+    if not db.query(db_models.Event).first():
+        # ... logic to seed events ...
+        pass
+
+    db.close()
+    return
     
     # Create Organizations
     orgs_data = [
@@ -192,7 +195,7 @@ def init_db():
     )
     db.add(anomaly)
     
-    # More anomalies
+    # More anomalies (Warning/Critical)
     for i in range(2, 5):
         anom = db_models.Anomaly(
             id=f"anom-{i:02d}",
@@ -204,6 +207,17 @@ def init_db():
             confidence=round(random.uniform(0.7, 0.99), 2)
         )
         db.add(anom)
+
+    # One Trace level anomaly
+    db.add(db_models.Anomaly(
+        id="anom-05",
+        event_ids=[],
+        type="LatencyBleep",
+        severity=0.15,
+        explanation="Minor data latency detected in regional node.",
+        root_causes=["Network Jitter"],
+        confidence=0.85
+    ))
     
     db.commit()
 
@@ -261,6 +275,51 @@ def init_db():
         )
         db.add(scenario)
     
+    db.commit()
+
+    # Create Ghost Inventory
+    for i in range(1, 6):
+        db.add(
+            db_models.GhostInventory(
+                id=f"ghost-{i}",
+                shipment_id=f"RW-{1000 + i}",
+                digital_count=random.randint(500, 1000),
+                physical_prob=round(random.uniform(0.7, 0.99), 2),
+                delta=random.randint(-10, 10),
+                confidence=round(random.uniform(0.6, 0.95), 2),
+                last_scan=datetime.utcnow() - timedelta(hours=random.randint(1, 24))
+            )
+        )
+    
+    # Create Negotiation Sessions
+    db.add(
+        db_models.NegotiationSession(
+            id="neg-01",
+            anomaly_id="anom-01",
+            partner_id="org-1",
+            status="active",
+            strategy="Collaborative Resolution",
+            history=[
+                {"role": "ai", "content": "I've detected an impossible scan event. We need to verify the location of shipment RW-ERR-01.", "time": (datetime.utcnow() - timedelta(hours=1)).isoformat()},
+                {"role": "user", "content": "Checking with the warehouse team now.", "time": (datetime.utcnow() - timedelta(minutes=30)).isoformat()}
+            ]
+        )
+    )
+
+    # Create Trust DNA for all organizations
+    for org in orgs_data:
+        db.add(
+            db_models.TrustDNA(
+                org_id=org["id"],
+                punctuality=round(random.uniform(0.6, 1.0), 2),
+                quality=round(random.uniform(0.7, 1.0), 2),
+                disclosure=round(random.uniform(0.5, 1.0), 2),
+                honesty=round(random.uniform(0.8, 1.0), 2),
+                consistency=round(random.uniform(0.6, 1.0), 2),
+                stability=round(random.uniform(0.7, 1.0), 2)
+            )
+        )
+
     db.commit()
     db.close()
     

@@ -1,73 +1,80 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import ReactFlow, { Background, Controls, Handle, MarkerType, Position, type Edge, type Node } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Shield, ShieldAlert, ShieldCheck, Zap } from 'lucide-react';
+import { Shield, ShieldAlert, ShieldCheck, Zap, Globe, Activity, Layers, ArrowUpRight, Search, Crosshair } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getOrganizations } from '@/lib/api';
 import { useLiveRefresh } from '@/lib/useLiveRefresh';
+import dynamic from 'next/dynamic';
 
-type Organization = {
+const GeoMap = dynamic(() => import('@/components/GeoMap'), { 
+  ssr: false,
+  loading: () => <div className="w-full h-full bg-black/40 animate-pulse flex items-center justify-center text-white/20 font-black uppercase tracking-widest italic rounded-[40px]">Initializing Satellite Link...</div>
+});
+
+interface Organization {
   id: string;
   name: string;
   type: string;
   region: string;
   trust_score: number;
-};
+}
 
-type TrustNodeData = {
+interface TrustNodeData {
   label: string;
   status: 'strong' | 'fragile' | 'weakening';
   trust: number;
-};
+  region: string;
+  type: string;
+}
 
 const nodeTypes = {
   trustNode: TrustNode,
 };
 
 function buildNodes(organizations: Organization[]): Node<TrustNodeData>[] {
-  const radius = 220;
-
-  return organizations.map((organization, index) => {
-    const angle = (index / Math.max(organizations.length, 1)) * Math.PI * 2;
-    const trust = organization.trust_score;
+  const radius = 280;
+  return organizations.map((org, i) => {
+    const angle = (i / organizations.length) * Math.PI * 2;
+    const trust = org.trust_score;
     const status: TrustNodeData['status'] = trust >= 0.85 ? 'strong' : trust >= 0.7 ? 'weakening' : 'fragile';
 
     return {
-      id: organization.id,
+      id: org.id,
       type: 'trustNode',
       position: {
-        x: 300 + Math.cos(angle) * radius,
-        y: 180 + Math.sin(angle) * radius,
+        x: 400 + Math.cos(angle) * radius,
+        y: 250 + Math.sin(angle) * radius,
       },
       data: {
-        label: organization.name,
+        label: org.name,
         status,
         trust,
+        region: org.region,
+        type: org.type,
       },
     };
   });
 }
 
 function buildEdges(organizations: Organization[]): Edge[] {
-  return organizations.slice(1).map((organization, index) => {
-    const source = organizations[index];
-    const trust = organization.trust_score;
-    const label = trust >= 0.85 ? 'Verified link' : trust >= 0.7 ? 'Support link' : 'Weak link';
-    const stroke = trust >= 0.85 ? '#10b981' : trust >= 0.7 ? '#3b82f6' : '#ef4444';
+  return organizations.slice(1).map((org, i) => {
+    const source = organizations[i];
+    const trust = org.trust_score;
+    const stroke = trust >= 0.85 ? '#22d3ee' : trust >= 0.7 ? '#6366f1' : '#f43f5e';
 
     return {
-      id: `${source.id}-${organization.id}`,
+      id: `${source.id}-${org.id}`,
       source: source.id,
-      target: organization.id,
-      label,
+      target: org.id,
       animated: true,
       style: {
         stroke,
-        strokeWidth: trust >= 0.85 ? 3 : 2,
-        strokeDasharray: trust < 0.7 ? '5,5' : undefined,
+        strokeWidth: 2,
+        opacity: 0.4,
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,
@@ -79,157 +86,183 @@ function buildEdges(organizations: Organization[]): Edge[] {
 
 function TrustNode({ data }: { data: TrustNodeData }) {
   return (
-    <div
-      className={cn(
-        'px-6 py-4 rounded-2xl border-2 flex flex-col gap-2 min-w-[180px] bg-card-bg/90 backdrop-blur-xl transition-all',
-        data.status === 'strong'
-          ? 'border-accent/40 shadow-[0_0_20px_rgba(16,185,129,0.2)]'
-          : data.status === 'fragile'
-            ? 'border-danger/60 shadow-[0_0_20px_rgba(239,68,68,0.3)]'
-            : 'border-primary/40 shadow-[0_0_20px_rgba(59,130,246,0.2)]'
-      )}
-    >
-      <Handle type="target" position={Position.Top} className="!bg-white/20" />
-      <div className="flex items-center justify-between">
-        <span
-          className={cn(
-            'text-[10px] font-black tracking-[0.08em]',
-            data.status === 'strong'
-              ? 'text-accent'
-              : data.status === 'fragile'
-                ? 'text-danger animate-pulse'
-                : 'text-primary'
-          )}
-        >
-          {data.status}
-        </span>
-        {data.status === 'strong' ? (
-          <ShieldCheck size={14} className="text-accent" />
-        ) : data.status === 'fragile' ? (
-          <ShieldAlert size={14} className="text-danger" />
-        ) : (
-          <Shield size={14} className="text-primary" />
-        )}
+    <div className={cn(
+      "p-5 rounded-3xl border-2 bg-background/80 backdrop-blur-3xl min-w-[220px] transition-all relative overflow-hidden group",
+      data.status === 'strong' ? "border-accent/40 shadow-lg shadow-accent/10" :
+      data.status === 'fragile' ? "border-danger/40 shadow-lg shadow-danger/10 animate-pulse" :
+      "border-primary/40 shadow-lg shadow-primary/10"
+    )}>
+      <Handle type="target" position={Position.Top} className="!bg-white/10 !border-white/20" />
+      
+      <div className="flex justify-between items-start mb-3">
+         <div className={cn(
+            "p-2 rounded-xl bg-white/5",
+            data.status === 'strong' ? "text-accent" : "text-white/40"
+         )}>
+            <Globe size={18} />
+         </div>
+         <span className={cn(
+            "text-[9px] font-black uppercase px-2 py-0.5 rounded tracking-widest",
+            data.status === 'strong' ? "bg-accent/20 text-accent" : "bg-warning/20 text-warning"
+         )}>
+            {(data.trust * 100).toFixed(0)}% TRUST
+         </span>
       </div>
-      <div className="font-bold text-white text-sm">{data.label}</div>
-      <div className="flex items-end justify-between mt-1">
-        <span className="text-[10px] text-white/30 font-mono">trust score</span>
-        <span className="text-lg font-black text-white">{(data.trust * 100).toFixed(0)}%</span>
-      </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-white/20" />
-    </div>
-  );
-}
 
-function LegendItem({ color, label }: { color: string; label: string }) {
-  return (
-    <div className="flex items-center gap-3 px-3 py-1.5 glass-morphism rounded-lg border border-white/5">
-      <div className={cn('w-2 h-2 rounded-full', color)} />
-      <span className="text-[10px] font-bold text-white/60 tracking-[0.08em]">{label}</span>
+      <div className="space-y-1">
+         <h4 className="text-sm font-black text-white italic tracking-tighter uppercase">{data.label}</h4>
+         <p className="text-[9px] text-white/20 font-bold uppercase tracking-widest">{data.type} // {data.region}</p>
+      </div>
+
+      <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center">
+         <div className="flex items-center gap-2">
+            <Activity size={12} className="text-primary" />
+            <span className="text-[8px] font-black text-white/30 uppercase tracking-widest">Active Link</span>
+         </div>
+         <ArrowUpRight size={14} className="text-white/20 group-hover:text-white transition-colors" />
+      </div>
+
+      <Handle type="source" position={Position.Bottom} className="!bg-white/10 !border-white/20" />
     </div>
   );
 }
 
 export default function DigitalTwin() {
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [nodes, setNodes] = useState<Node<TrustNodeData>[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [loading, setLoading] = useState(true);
+  const [visionMode, setVisionMode] = useState<'topology' | 'geospatial'>('geospatial');
 
-  const loadOrganizations = useCallback(async () => {
+  const loadData = useCallback(async () => {
     try {
+      setLoading(true);
       const data = await getOrganizations();
+      setOrganizations(data);
       setNodes(buildNodes(data));
       setEdges(buildEdges(data));
     } catch (error) {
-      console.error('Failed to load trust map data:', error);
+      console.error('Failed to load control room data:', error);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    loadOrganizations();
-  }, [loadOrganizations]);
-
-  useLiveRefresh(loadOrganizations);
-
-  const exportTopology = useCallback(() => {
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      nodes,
-      edges,
-    };
-
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = 'real-weave-trust-map.json';
-    anchor.click();
-    URL.revokeObjectURL(url);
-  }, [edges, nodes]);
-
-  if (loading) {
-    return <div className="text-white/40">Loading partner trust map...</div>;
-  }
-
-  if (nodes.length === 0) {
-    return <div className="text-white/40">No partner data found.</div>;
-  }
+  useEffect(() => { loadData(); }, [loadData]);
+  useLiveRefresh(loadData);
 
   return (
-    <div className="h-[calc(100vh-200px)] relative overflow-hidden rounded-3xl border border-white/5 bg-background">
-      <div className="absolute top-8 left-8 z-10 space-y-4">
-        <div className="glass-morphism p-6 rounded-2xl border border-white/10 max-w-xs">
-          <h3 className="text-xl font-black text-white italic mb-2">PARTNER TRUST MAP</h3>
-          <p className="text-xs text-white/40 leading-relaxed">
-            View trust levels across suppliers and logistics nodes. Spot weak links before they create bigger problems.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2">
-          <LegendItem color="bg-accent" label="High trust" />
-          <LegendItem color="bg-primary" label="Medium trust" />
-          <LegendItem color="bg-danger" label="Low trust" />
-        </div>
+    <div className="h-[calc(100vh-240px)] glass-morphism rounded-[40px] border border-white/5 relative overflow-hidden bg-black/40">
+      {/* Overlay: Control Interface */}
+      <div className="absolute top-10 left-10 z-10 space-y-6 pointer-events-none">
+         <div className="pointer-events-auto">
+            <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase mb-2">Digital Twin Grid</h2>
+            <p className="text-white/40 font-medium max-w-xs">Real-time simulation of supply chain node health and trust interconnects.</p>
+         </div>
+
+         <div className="flex flex-col gap-3 pointer-events-auto">
+            <LegendRow color="bg-accent" label="High-Fidelity Node" />
+            <LegendRow color="bg-primary" label="Stability Pending" />
+            <LegendRow color="bg-danger" label="Critical Variance" />
+         </div>
       </div>
 
-      <div className="absolute top-8 right-8 z-10 flex gap-4">
-        <Link href="/dashboard/trust" className="px-6 py-3 bg-white text-background rounded-xl font-bold flex items-center gap-2 hover:scale-105 transition-all text-xs">
-          <Zap size={16} /> REFRESH TRUST SCORE
-        </Link>
-        <button onClick={exportTopology} className="px-6 py-3 glass-morphism border border-white/10 text-white rounded-xl font-bold hover:bg-white/5 transition-all text-xs">
-          EXPORT MAP
-        </button>
+      {/* Action Bar */}
+      <div className="absolute top-10 right-10 z-10 flex gap-4 pointer-events-auto">
+         <div className="flex p-1 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-xl">
+            <button 
+               onClick={() => setVisionMode('topology')}
+               className={cn(
+                  "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
+                  visionMode === 'topology' ? "bg-primary text-white glow-shadow-primary" : "text-white/40 hover:text-white"
+               )}
+            >Topology</button>
+            <button 
+               onClick={() => setVisionMode('geospatial')}
+               className={cn(
+                  "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
+                  visionMode === 'geospatial' ? "bg-primary text-white glow-shadow-primary" : "text-white/40 hover:text-white"
+               )}
+            >Geospatial</button>
+         </div>
+         <button className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-2 backdrop-blur-xl transition-all">
+            <Search size={16} /> Scan Network
+         </button>
       </div>
 
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        fitView
-        className="trust-graph"
-      >
-        <Background color="rgba(255, 255, 255, 0.02)" gap={20} />
-        <Controls className="!bg-card-bg !border-none !shadow-none [&_button]:!invert" />
-      </ReactFlow>
+      {/* Network Visualization */}
+      <div className="w-full h-full">
+         <AnimatePresence mode="wait">
+            {visionMode === 'topology' ? (
+               <motion.div 
+                  key="topology"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="w-full h-full"
+               >
+                  <ReactFlow
+                    nodes={nodes}
+                    edges={edges}
+                    nodeTypes={nodeTypes}
+                    fitView
+                    className="trust-graph"
+                  >
+                    <Background color="#fff" gap={40} size={1} opacity={0.03} />
+                    <Controls className="!bg-white/5 !border-none !shadow-none [&_button]:!invert [&_button]:!opacity-40" />
+                  </ReactFlow>
+               </motion.div>
+            ) : (
+               <motion.div
+                  key="geospatial"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="w-full h-full p-4"
+               >
+                  <GeoMap organizations={organizations} mode="partners" />
+               </motion.div>
+            )}
+         </AnimatePresence>
+      </div>
 
-      <div className="absolute bottom-8 right-8 z-10 glass-morphism p-6 rounded-2xl border border-white/10 w-80">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-danger/10 flex items-center justify-center text-danger">
-            <ShieldAlert size={20} />
-          </div>
-          <div>
-            <h4 className="text-sm font-bold text-white tracking-[0.08em]">Weak link detected</h4>
-            <p className="text-[10px] text-white/30 font-mono">Trust review</p>
-          </div>
-        </div>
-        <p className="text-xs text-white/50 leading-relaxed italic mb-4">
-          One partner is showing a lower trust score. Review the link before a delay spreads.
-        </p>
-        <Link href="/dashboard/negotiation" className="block w-full py-3 border border-white/10 text-white hover:bg-white/5 rounded-xl text-[10px] font-black tracking-[0.08em] transition-all text-center">
-          Open action planner
-        </Link>
+      {/* Footer Stats */}
+      <div className="absolute bottom-10 left-10 right-10 z-10 flex justify-between items-end pointer-events-none">
+         <div className="glass-morphism p-6 rounded-3xl border border-white/5 pointer-events-auto space-y-4">
+            <div className="flex items-center gap-4">
+               <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary border border-primary/20">
+                  <Layers size={24} />
+               </div>
+               <div>
+                  <h4 className="text-lg font-black text-white italic uppercase">Network Density</h4>
+                  <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest">Topology v2.4a</p>
+               </div>
+            </div>
+            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+               <motion.div initial={{ width: 0 }} animate={{ width: '84%' }} className="h-full bg-primary" />
+            </div>
+         </div>
+         
+         <div className="pointer-events-auto flex items-center gap-8 text-right pr-4">
+            <div>
+               <span className="text-[10px] font-black text-white/20 uppercase tracking-widest block">Active Signals</span>
+               <span className="text-2xl font-black text-white italic">14.2k</span>
+            </div>
+            <div>
+               <span className="text-[10px] font-black text-white/20 uppercase tracking-widest block">Core Entropy</span>
+               <span className="text-2xl font-black text-accent italic">0.024</span>
+            </div>
+         </div>
       </div>
     </div>
   );
+}
+
+function LegendRow({ color, label }: any) {
+   return (
+      <div className="flex items-center gap-3 italic">
+         <div className={cn("w-2 h-2 rounded-full", color)} />
+         <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">{label}</span>
+      </div>
+   );
 }

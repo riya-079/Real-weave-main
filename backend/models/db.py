@@ -101,3 +101,36 @@ class SharedRiskPattern(Base):
     confidence = Column(Float, default=0.0)
     partner_count = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class GhostInventory(Base):
+    __tablename__ = "ghost_inventory"
+
+    id = Column(String, primary_key=True, index=True)
+    shipment_id = Column(String, index=True)
+    digital_count = Column(Integer)
+    physical_prob = Column(Float)
+    delta = Column(Integer)
+    confidence = Column(Float)
+    last_scan = Column(DateTime(timezone=True))
+
+class NegotiationSession(Base):
+    __tablename__ = "negotiation_sessions"
+
+    id = Column(String, primary_key=True, index=True)
+    anomaly_id = Column(String, index=True)
+    partner_id = Column(String)
+    status = Column(String) # active, resolved, stalled
+    strategy = Column(String)
+    history = Column(JSON, default=list) # List of messages or offers
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+class TrustDNA(Base):
+    __tablename__ = "trust_dna"
+
+    org_id = Column(String, primary_key=True, index=True)
+    punctuality = Column(Float)
+    quality = Column(Float)
+    disclosure = Column(Float)
+    honesty = Column(Float)
+    consistency = Column(Float)
+    stability = Column(Float)

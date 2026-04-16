@@ -5,14 +5,25 @@ from typing import Any, List, Optional, cast
 from datetime import datetime, timezone
 import asyncio
 import uvicorn
+import random
 from models import schemas
 from models import db as db_models
 from database import get_db, engine, Base
 from init_db import init_db
+import os
+import httpx
+from dotenv import load_dotenv
 
-# Initialize database
-Base.metadata.create_all(bind=engine)
-init_db()
+# Load environment variables
+load_dotenv()
+NEWS_API_KEY = os.getenv("NEWS_API_KEY")
+
+# Global News Cache
+news_cache = []
+
+# Initialize database logic will be handled in startup_event to avoid blocking uvicorn
+# Base.metadata.create_all(bind=engine)
+# init_db()
 
 app = FastAPI(title="Real Weave API", description="Cognitive Supply Chain Intelligence Platform")
 
@@ -155,6 +166,42 @@ def serialize_shared_risk_pattern(pattern: db_models.SharedRiskPattern) -> schem
         created_at=getattr(pattern, "created_at", None),
     )
 
+
+def serialize_ghost_inventory(item: db_models.GhostInventory) -> schemas.GhostInventory:
+    return schemas.GhostInventory(
+        id=str(item.id),
+        shipment_id=str(item.shipment_id),
+        digital_count=int(item.digital_count),
+        physical_prob=float(item.physical_prob),
+        delta=int(item.delta),
+        confidence=float(item.confidence),
+        last_scan=item.last_scan
+    )
+
+
+def serialize_negotiation(session: db_models.NegotiationSession) -> schemas.NegotiationSession:
+    return schemas.NegotiationSession(
+        id=str(session.id),
+        anomaly_id=str(session.anomaly_id),
+        partner_id=str(session.partner_id),
+        status=str(session.status),
+        strategy=str(session.strategy),
+        history=list(session.history or []),
+        updated_at=session.updated_at
+    )
+
+
+def serialize_trust_dna(dna: db_models.TrustDNA) -> schemas.TrustDNA:
+    return schemas.TrustDNA(
+        org_id=str(dna.org_id),
+        punctuality=float(dna.punctuality),
+        quality=float(dna.quality),
+        disclosure=float(dna.disclosure),
+        honesty=float(dna.honesty),
+        consistency=float(dna.consistency),
+        stability=float(dna.stability)
+    )
+
 # ==================== HEALTH CHECK ====================
 
 @app.get("/")
@@ -171,17 +218,19 @@ async def live_updates_socket(websocket: WebSocket):
         await websocket.send_json(
             {
                 "type": "connected",
-                "at": datetime.now(timezone.utc).isoformat(),
+                "message": "Signal link established with Real-Weave Global Intelligence Relay",
+                "at": datetime.now(timezone.utc).isoformat()
             }
         )
+        # Keep the connection open indefinitely with a heart-beat
         while True:
-            await asyncio.sleep(25)
-            await websocket.send_json(
-                {
-                    "type": "heartbeat",
-                    "at": datetime.now(timezone.utc).isoformat(),
-                }
-            )
+            try:
+                # Wait for any message from client OR timeout for heartbeat
+                await asyncio.wait_for(websocket.receive_text(), timeout=20.0)
+            except asyncio.TimeoutError:
+                # Send heartbeat if no message received
+                await websocket.send_json({"type": "heartbeat", "at": datetime.now(timezone.utc).isoformat()})
+            
     except WebSocketDisconnect:
         live_clients.discard(websocket)
     except Exception:
@@ -531,6 +580,199 @@ async def update_sentiment(sentiment_data: schemas.Sentiment, db: Session = Depe
         score=float(getattr(sentiment, "score", 0.0) or 0.0),
         description=str(getattr(sentiment, "description", ""))
     )
+
+# ==================== GHOST INVENTORY ====================
+
+@app.get("/ghost-inventory", response_model=List[schemas.GhostInventory])
+async def get_ghost_inventory(db: Session = Depends(get_db)):
+    items = db.query(db_models.GhostInventory).all()
+    return [serialize_ghost_inventory(item) for item in items]
+
+@app.post("/ghost-inventory", response_model=schemas.GhostInventory)
+async def create_ghost_inventory(item_data: schemas.GhostInventory, db: Session = Depends(get_db)):
+    db_item = db_models.GhostInventory(**item_data.model_dump())
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    await notify_live_update("ghost-inventory", "created", str(db_item.id))
+    return serialize_ghost_inventory(db_item)
+
+# ==================== NEGOTIATIONS ====================
+
+@app.get("/negotiations", response_model=List[schemas.NegotiationSession])
+async def get_negotiations(db: Session = Depends(get_db)):
+    sessions = db.query(db_models.NegotiationSession).all()
+    return [serialize_negotiation(session) for session in sessions]
+
+@app.post("/negotiations", response_model=schemas.NegotiationSession)
+async def create_negotiation(session_data: schemas.NegotiationSession, db: Session = Depends(get_db)):
+    db_session = db_models.NegotiationSession(**session_data.model_dump())
+    db.add(db_session)
+    db.commit()
+    db.refresh(db_session)
+    await notify_live_update("negotiations", "created", str(db_session.id))
+    return serialize_negotiation(db_session)
+
+@app.put("/negotiations/{session_id}", response_model=schemas.NegotiationSession)
+async def update_negotiation(session_id: str, session_data: schemas.NegotiationSession, db: Session = Depends(get_db)):
+    session = db.query(db_models.NegotiationSession).filter(db_models.NegotiationSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Negotiation session not found")
+    
+    for key, value in session_data.model_dump().items():
+        if key != "id":
+            setattr(session, key, value)
+    
+    db.commit()
+    db.refresh(session)
+    await notify_live_update("negotiations", "updated", session_id)
+    return serialize_negotiation(session)
+
+# ==================== TRUST DNA ====================
+
+@app.get("/trust-dna", response_model=List[schemas.TrustDNA])
+async def get_all_trust_dna(db: Session = Depends(get_db)):
+    dnas = db.query(db_models.TrustDNA).all()
+    return [serialize_trust_dna(dna) for dna in dnas]
+
+@app.get("/trust-dna/{org_id}", response_model=schemas.TrustDNA)
+async def get_trust_dna(org_id: str, db: Session = Depends(get_db)):
+    dna = db.query(db_models.TrustDNA).filter(db_models.TrustDNA.org_id == org_id).first()
+    if not dna:
+        raise HTTPException(status_code=404, detail="Trust DNA not found")
+    return serialize_trust_dna(dna)
+
+@app.post("/trust-dna", response_model=schemas.TrustDNA)
+async def create_trust_dna(dna_data: schemas.TrustDNA, db: Session = Depends(get_db)):
+    db_dna = db_models.TrustDNA(**dna_data.model_dump())
+    db.add(db_dna)
+    db.commit()
+    db.refresh(db_dna)
+    await notify_live_update("trust-dna", "updated", str(db_dna.org_id))
+    return serialize_trust_dna(db_dna)
+
+async def fetch_real_news():
+    """Fetch actual supply chain news from NewsAPI."""
+    global news_cache
+    if not NEWS_API_KEY:
+        return
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            # Query for logistics/supply chain news
+            url = f"https://newsapi.org/v2/everything?q=supply+chain+OR+logistics+OR+shipping+port&sortBy=publishedAt&pageSize=10&apiKey={NEWS_API_KEY}"
+            response = await client.get(url, timeout=5.0)
+            if response.status_code == 200:
+                articles = response.json().get("articles", [])
+                if articles:
+                    news_cache = [
+                        {
+                            "title": a["title"],
+                            "severity": "Critical" if any(k in a["title"].lower() for k in ["strike", "block", "delay", "disrupt", "crisis"]) else "Elevated",
+                            "impact": random.randint(20, 50),
+                            "source": a["source"]["name"]
+                        } for a in articles
+                    ]
+    except Exception as e:
+        print(f"Failed to fetch news: {e}")
+
+async def telemetry_sim_loop():
+    """Background task to simulate live telemetry and global intelligence signals."""
+    disruption_types = ["Network Congestion", "Consensus Shift", "Digital Twin Sync", "Sensor Recalibration"]
+    locations = ["Global Node", "Regional Hub", "Data Center", "Edge Perimeter"]
+    
+    whisper_patterns = [
+        "Observed abnormal latency in APAC customs clearing nodes.",
+        "Unconfirmed report of major strike preparations at Mediterranean terminals.",
+        "Detected slight temperature variance across all Batch-42 containers in the Atlantic.",
+        "Minor consensus drift noticed in Partner Scorecard ledger. Investigating."
+    ]
+    
+    # Initial news fetch
+    await fetch_real_news()
+    news_index = 0
+    fetch_counter = 0
+
+    while True:
+        try:
+            if live_clients:
+                # 1. Telemetry Pulse (Every 5 seconds)
+                await broadcast_live_update({
+                    "type": "telemetry",
+                    "signals": [
+                        {"id": "RW-1002", "metric": "GPS", "value": f"{34.05 + random.uniform(-0.02, 0.02):.2f}, {-118.24:.2f}", "status": "Healthy"},
+                        {"id": "RW-1005", "metric": "TEMP", "value": f"{4.2 + random.uniform(-0.5, 0.5):.1f}°C", "status": "Warning" if random.random() > 0.8 else "Healthy"},
+                        {"id": "RW-1012", "metric": "SHOCK", "value": f"{random.uniform(0.1, 0.8):.2f}G", "status": "Healthy"}
+                    ],
+                    "at": datetime.now(timezone.utc).isoformat()
+                })
+
+                # 2. Global Intelligence Event (Real news if available, fallback to sim)
+                if random.random() > 0.6:
+                    event_data = None
+                    if news_cache:
+                        event_data = news_cache[news_index % len(news_cache)]
+                        news_index += 1
+                    else:
+                        event_data = {
+                            "title": f"{random.choice(disruption_types)}: {random.choice(locations)}",
+                            "severity": random.choice(["Critical", "Elevated", "Stable"]),
+                            "impact": random.randint(15, 65),
+                            "source": "Predictive AI Engine"
+                        }
+
+                    await broadcast_live_update({
+                        "type": "intelligence",
+                        "event": event_data,
+                        "at": datetime.now(timezone.utc).isoformat()
+                    })
+
+                # 3. Ghost Inventory Anomaly (Random chance every 10 seconds)
+                if random.random() > 0.9:
+                    await broadcast_live_update({
+                        "type": "refresh",
+                        "topic": "ghost-inventory",
+                        "action": "created",
+                        "entity_id": f"GHOST-{random.randint(100, 999)}",
+                        "at": datetime.now(timezone.utc).isoformat()
+                    })
+
+                # 4. Anonymous Whisper (Random chance every 5 seconds)
+                if random.random() > 0.6:
+                    await broadcast_live_update({
+                        "type": "whisper",
+                        "signal": {
+                            "id": f"0x{random.getrandbits(64):x}",
+                            "type": "Anonymous Shared Ledger",
+                            "origin": "Hidden Peer [SHA256]",
+                            "confidence": random.uniform(0.65, 0.98),
+                            "details": random.choice(whisper_patterns)
+                        },
+                        "at": datetime.now(timezone.utc).isoformat()
+                    })
+
+                # Refresh news every 12 loops (~60 seconds)
+                fetch_counter += 1
+                if fetch_counter >= 12:
+                    await fetch_real_news()
+                    fetch_counter = 0
+
+        except Exception as e:
+            print(f"Real-time API error: {e}")
+        await asyncio.sleep(5)
+
+@app.on_event("startup")
+async def startup_event():
+    # Run DB init in a thread to keep the event loop free
+    def sync_init():
+        Base.metadata.create_all(bind=engine)
+        init_db()
+    
+    # Run heavy IO in background thread without blocking events
+    asyncio.create_task(asyncio.to_thread(sync_init))
+    
+    # Start the real-time simulation loop
+    asyncio.create_task(telemetry_sim_loop())
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

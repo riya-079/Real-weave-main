@@ -57,9 +57,9 @@ export default function LandingPage() {
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-morphism border border-primary/20 text-primary text-sm font-bold tracking-wider mb-6">
               <Zap size={14} className="animate-pulse" /> SIMPLE SMART SUPPLY CHAIN
             </div>
-            <h1 className="text-6xl md:text-8xl font-black mb-8 tracking-tighter text-white leading-[1.1]">
+            <h1 className="text-6xl md:text-8xl font-black mb-8 tracking-tight text-white leading-[1.2]">
               A Supply Chain <br />
-              <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent italic">
+              <span className="inline-block bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent italic px-10 py-4 -mx-10">
                 That Remembers and Predicts
               </span>
             </h1>

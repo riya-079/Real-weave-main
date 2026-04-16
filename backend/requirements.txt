@@ -10,3 +10,4 @@ pandas
 numpy
 networkx
 scikit-learn
+httpx
