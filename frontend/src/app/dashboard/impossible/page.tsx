@@ -45,11 +45,13 @@ export default function ImpossibleEvents() {
   const [selected, setSelected] = useState<Anomaly | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [owner, setOwner] = useState('');
   const [note, setNote] = useState('');
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'critical' | 'warning'>('all');
   const [mounted, setMounted] = useState(false);
+  const [verifiedCauses, setVerifiedCauses] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     setMounted(true);
@@ -141,6 +143,8 @@ export default function ImpossibleEvents() {
       console.error('Failed to save alert workflow:', error);
     } finally {
       setSaving(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
     }
   };
 
@@ -352,12 +356,34 @@ export default function ImpossibleEvents() {
                             <BarChart3 size={14} className="text-primary" /> Suspected Root Causes
                          </h3>
                          <div className="space-y-2">
-                            {selected.root_causes.map((cause, i) => (
-                              <div key={i} className="px-4 py-3 bg-white/5 rounded-xl border border-white/5 flex justify-between items-center group hover:bg-white/10 transition-all">
-                                 <span className="text-sm text-white/80 font-medium">{cause}</span>
-                                 <span className="text-[10px] font-black text-primary opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-widest">Verify</span>
-                              </div>
-                            ))}
+                            {selected.root_causes.map((cause, i) => {
+                              const isVerified = verifiedCauses[selected.id]?.includes(cause);
+                              return (
+                                <div 
+                                  key={i} 
+                                  onClick={() => {
+                                    setVerifiedCauses(prev => {
+                                      const current = prev[selected.id] || [];
+                                      const next = current.includes(cause) 
+                                        ? current.filter(c => c !== cause)
+                                        : [...current, cause];
+                                      return { ...prev, [selected.id]: next };
+                                    });
+                                  }}
+                                  className={cn(
+                                    "px-4 py-3 rounded-xl border flex justify-between items-center group cursor-pointer transition-all",
+                                    isVerified ? "bg-accent/10 border-accent/30" : "bg-white/5 border-white/5 hover:bg-white/10"
+                                  )}
+                                >
+                                   <span className={cn("text-sm font-medium", isVerified ? "text-accent" : "text-white/80")}>{cause}</span>
+                                   {isVerified ? (
+                                     <ShieldCheck size={14} className="text-accent" />
+                                   ) : (
+                                     <span className="text-[10px] font-black text-primary opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-widest text-right">Verify Trace</span>
+                                   )}
+                                </div>
+                              );
+                            })}
                          </div>
                       </section>
 
@@ -388,20 +414,32 @@ export default function ImpossibleEvents() {
                           />
                         </div>
 
-                        <button
-                          onClick={() => saveWorkflow({ owner, note })}
-                          disabled={saving}
-                          className="w-full py-3 bg-primary hover:bg-primary/80 disabled:opacity-60 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all glow-shadow-primary"
-                        >
-                          {saving ? 'Transmitting Data...' : 'Audit & Update Case'}
-                        </button>
+                         <button
+                           onClick={() => saveWorkflow({ owner, note })}
+                           disabled={saving || saveSuccess}
+                           className={cn(
+                             "w-full py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all glow-shadow-primary flex items-center justify-center gap-2",
+                             saveSuccess ? "bg-accent" : "bg-primary hover:bg-primary/80",
+                             saving && "opacity-60"
+                           )}
+                         >
+                           {saving ? (
+                              <>
+                                 <Loader className="animate-spin" size={14} /> Transmitting Data...
+                              </>
+                           ) : saveSuccess ? (
+                              <>
+                                 <ShieldCheck size={14} /> Case Synchronized
+                              </>
+                           ) : 'Audit & Update Case'}
+                         </button>
                       </section>
                    </div>
                 </div>
 
                 {/* Footer Actions */}
                 <div className="p-8 border-t border-white/5 bg-white/2 flex gap-4">
-                    <Link href="/dashboard/negotiation" className="flex-1 py-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all text-center">
+                    <Link href={`/dashboard/negotiation?anomaly_id=${selected.id}`} className="flex-1 py-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all text-center">
                       Invoke Strategy Planner
                     </Link>
                     <button onClick={() => saveWorkflow({ archived: true })} className="flex-1 py-4 bg-danger/10 hover:bg-danger/20 border border-danger/20 text-danger rounded-2xl font-black text-xs uppercase tracking-widest transition-all">

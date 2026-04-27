@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSearchParams } from 'next/navigation';
 import { MessageSquare, Users, Shield, Zap, TrendingUp, ArrowRight, CheckCircle2, AlertCircle, Clock, Plus, Send, TrendingDown } from 'lucide-react';
 import { getNegotiations } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -21,6 +22,10 @@ export default function NegotiationSessions() {
    const [selected, setSelected] = useState<Negotiation | null>(null);
    const [loading, setLoading] = useState(true);
    const [message, setMessage] = useState('');
+   const [selectedStrategy, setSelectedStrategy] = useState('Cost Split');
+   const [timeline, setTimeline] = useState<any[]>([]);
+   const searchParams = useSearchParams();
+   const anomalyId = searchParams.get('anomaly_id');
 
    const loadSessions = useCallback(async () => {
       try {
@@ -38,6 +43,70 @@ export default function NegotiationSessions() {
    useEffect(() => {
       loadSessions();
    }, [loadSessions]);
+
+   // Handle anomaly context from URL
+   useEffect(() => {
+      if (anomalyId && sessions.length > 0) {
+         const autoSelect = sessions.find(s => s.id.includes(anomalyId) || s.title.includes(anomalyId));
+         if (autoSelect) {
+            setSelected(autoSelect);
+         } else {
+            // Create a shadow session for the new anomaly
+            const shadowSession: Negotiation = {
+               id: `PROTO-${anomalyId.split('-').pop()}`,
+               title: `Resolution: ${anomalyId}`,
+               participants: ['Nexus Logistics', 'Real Weave'],
+               status: 'Open',
+               strategy_type: 'Collaborative Resolution',
+               current_deal: 'Awaiting Proposal'
+            };
+            setSessions(prev => [shadowSession, ...prev]);
+            setSelected(shadowSession);
+         }
+      }
+   }, [anomalyId, sessions.length]);
+
+   useEffect(() => {
+      if (selected) {
+         setTimeline([
+            {
+               org: "System Oracle", 
+               time: "10:42 AM", 
+               msg: `Anomaly detected in ${selected.id}. ${selected.strategy_type} required. Initiating consensus protocol.`, 
+               isSystem: true
+            },
+            ...selected.participants.map((p, i) => ({
+               org: p, 
+               time: `${10 + i}:50 AM`, 
+               msg: i === 0 ? "Acknowledged. We are reviewing our warehouse logs for discrepancies." : "Data shared from our end. Trust DNA shows high reliability for this ledger segment.",
+               status: i === 0 ? "Analyzing" : "Approved"
+            }))
+         ]);
+      }
+   }, [selected]);
+
+   const sendMessage = () => {
+      if (!message.trim()) return;
+      const newItem = {
+         org: "Real Weave (You)",
+         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+         msg: message,
+         status: "Proposed"
+      };
+      setTimeline(prev => [...prev, newItem]);
+      setMessage('');
+   };
+
+   const executeConsensus = () => {
+      const newItem = {
+         org: "System Oracle",
+         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+         msg: `Final consensus reached using ${selectedStrategy} strategy. Protocol sealed at ${selected?.current_deal || '100% agreement'}.`,
+         isSystem: true,
+         status: "Verified"
+      };
+      setTimeline(prev => [...prev, newItem]);
+   };
 
    useLiveRefresh(loadSessions);
 
@@ -111,19 +180,14 @@ export default function NegotiationSessions() {
                   {/* Consensus Timeline */}
                   <div className="flex-1 p-8 overflow-y-auto space-y-8 custom-scrollbar">
                      <div className="space-y-6">
-                        <TimelineItem 
-                           org="System Oracle" 
-                           time="10:42 AM" 
-                           msg="Anomaly detected in Route A-12. Supply-side variance is 14.2%. Initiating consensus protocol." 
-                           isSystem
-                        />
-                        {selected.participants.map((p, i) => (
+                        {timeline.map((item, i) => (
                            <TimelineItem 
-                              key={i} 
-                              org={p} 
-                              time={`${10 + i}:50 AM`} 
-                              msg={i === 0 ? "Acknowledged. We are reviewing our warehouse logs for discrepancies." : "Data shared from our end. Trust DNA shows high reliability for this ledger segment."} 
-                              status={i === 0 ? "Analyzing" : "Approved"}
+                              key={i}
+                              org={item.org}
+                              time={item.time}
+                              msg={item.msg}
+                              status={item.status}
+                              isSystem={item.isSystem}
                            />
                         ))}
                      </div>
@@ -132,22 +196,48 @@ export default function NegotiationSessions() {
                   {/* Strategy Selection / Action Bar */}
                   <div className="p-8 border-t border-white/5 bg-white/2 space-y-6">
                      <div className="grid grid-cols-3 gap-4">
-                        <StrategyButton icon={<TrendingDown size={14} />} label="Cost Split" active />
-                        <StrategyButton icon={<Clock size={14} />} label="Delay Waiver" />
-                        <StrategyButton icon={<Users size={14} />} label="Inventory Swap" />
+                        <StrategyButton 
+                           icon={<TrendingDown size={14} />} 
+                           label="Cost Split" 
+                           onClick={() => setSelectedStrategy('Cost Split')}
+                           active={selectedStrategy === 'Cost Split'} 
+                        />
+                        <StrategyButton 
+                           icon={<Clock size={14} />} 
+                           label="Delay Waiver" 
+                           onClick={() => setSelectedStrategy('Delay Waiver')}
+                           active={selectedStrategy === 'Delay Waiver'} 
+                        />
+                        <StrategyButton 
+                           icon={<Users size={14} />} 
+                           label="Inventory Swap" 
+                           onClick={() => setSelectedStrategy('Inventory Swap')}
+                           active={selectedStrategy === 'Inventory Swap'} 
+                        />
                      </div>
                      <div className="flex gap-4">
                         <div className="flex-1 relative">
                            <input 
                               value={message}
                               onChange={e => setMessage(e.target.value)}
+                              onKeyDown={e => e.key === 'Enter' && sendMessage()}
                               placeholder="Type your organization's stance..."
                               className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 pr-12 text-sm text-white outline-none focus:border-primary/40 transition-all font-medium"
                            />
-                           <button className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-primary text-white rounded-xl hover:scale-105 transition-all">
+                           <button 
+                              onClick={sendMessage}
+                              disabled={!message.trim()}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-primary text-white rounded-xl hover:scale-105 disabled:opacity-30 disabled:hover:scale-100 transition-all"
+                           >
                               <Send size={18} />
                            </button>
                         </div>
+                        <button 
+                           onClick={executeConsensus}
+                           className="px-8 py-4 bg-accent text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all glow-shadow-accent"
+                        >
+                           Propose Consensus
+                        </button>
                      </div>
                   </div>
                </>
@@ -192,9 +282,9 @@ function TimelineItem({ org, time, msg, status, isSystem }: any) {
    );
 }
 
-function StrategyButton({ icon, label, active }: any) {
+function StrategyButton({ icon, label, active, onClick }: any) {
    return (
-      <button className={cn(
+      <button onClick={onClick} className={cn(
          "flex items-center justify-center gap-2 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all",
          active ? "bg-primary border-primary text-white shadow-lg" : "bg-white/5 border-white/5 text-white/40 hover:bg-white/10"
       )}>

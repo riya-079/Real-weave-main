@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Fingerprint, TrendingUp, AlertCircle, CheckCircle2, Award, History, Globe, Star, Activity, UserCheck, Clock } from 'lucide-react';
-import { getTrustDNA } from '@/lib/api';
+import { getAllTrustDNA } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useLiveRefresh } from '@/lib/useLiveRefresh';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
@@ -24,7 +24,7 @@ export default function TrustDNA() {
    const loadTrust = React.useCallback(async () => {
       try {
          setLoading(true);
-         const data = await getTrustDNA();
+         const data = await getAllTrustDNA();
          setTrustData(data);
          if (data.length > 0 && !selected) setSelected(data[0]);
       } catch (error) {

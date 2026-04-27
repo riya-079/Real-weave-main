@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, CircleMarker, Popup, Polyline } from 'react-le
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { cn } from '@/lib/utils';
+import { getWeather } from '@/lib/api';
 
 interface GeoMapProps {
   organizations?: any[];
@@ -25,21 +26,45 @@ const REGION_COORDS: Record<string, [number, number]> = {
   'Shanghai Port': [31.2304, 121.4737],
   'Rotterdam Hub': [51.9225, 4.4792],
   'LA Long Beach': [33.7701, -118.1937],
-  'Panama Crossing': [8.9833, -79.5167]
+  'Panama Crossing': [8.9833, -79.5167],
+  'Nexus Logistics': [41.8781, -87.6298],
+  'Quantum Warehousing': [51.9225, 4.4792],
+  'Apex Manufacturing': [31.2304, 121.4737],
+  'Global Freight X': [1.3521, 103.8198],
+  'Silk Road Systems': [31.2304, 121.4737],
+  'India': [20.5937, 78.9629],
+  'Mumbai Port': [18.9438, 72.8389],
+  'Delhi Logistics': [28.6139, 77.2090],
+  'Bangalore Tech Hub': [12.9716, 77.5946],
+  'Chennai Port': [13.0827, 80.2707]
 };
 
 export default function GeoMap({ organizations = [], shipment, mode }: GeoMapProps) {
+  const [weather, setWeather] = React.useState<any>(null);
   const isShipmentMode = mode === 'shipment' && shipment;
   
-  // For shipment mode, try to resolve coords from origin/dest strings
+  // For shipment mode, try to resolve coords from tracking data, then origin/dest strings
+  const trackedCoords: [number, number] | null = isShipmentMode && shipment.last_lat && shipment.last_lon 
+    ? [shipment.last_lat, shipment.last_lon] 
+    : null;
+    
   const originCoords = isShipmentMode ? (REGION_COORDS[shipment.origin] || [34.05, -118.24]) : null;
   const destCoords = isShipmentMode ? (REGION_COORDS[shipment.destination] || [31.23, 121.47]) : null;
+
+  // Actual current visual position is either trackedCoords or the origin fallback
+  const currentCoords = trackedCoords || originCoords;
+
+  React.useEffect(() => {
+    if (isShipmentMode && originCoords) {
+      getWeather(originCoords[0], originCoords[1]).then(setWeather).catch(console.error);
+    }
+  }, [isShipmentMode, originCoords]);
 
   return (
     <div className="w-full h-full rounded-[40px] overflow-hidden border border-white/5 relative bg-background">
       <MapContainer 
-        center={isShipmentMode ? originCoords : [20, 0]} 
-        zoom={isShipmentMode ? 3 : 2} 
+        center={currentCoords || [20, 0]} 
+        zoom={isShipmentMode ? 4 : 2} 
         minZoom={2}
         maxBounds={[[-90, -180], [90, 180]]}
         style={{ height: '100%', width: '100%', background: '#09090b' }}
@@ -97,7 +122,20 @@ export default function GeoMap({ organizations = [], shipment, mode }: GeoMapPro
               pathOptions={{ color: '#fff', fillColor: '#3b82f6', fillOpacity: 1, weight: 2 }} 
               radius={8}
             >
-               <Popup className="custom-popup"><div className="p-2 text-white font-black text-xs">ORIGIN: {shipment.origin}</div></Popup>
+               <Popup className="custom-popup">
+                 <div className="p-2 space-y-2">
+                    <div className="text-white font-black text-xs uppercase">ORIGIN: {shipment.origin}</div>
+                    {weather && !weather.error && (
+                       <div className="pt-2 border-t border-white/10">
+                          <div className="text-[9px] font-black text-secondary uppercase tracking-widest mb-1">Atmospheric Telemetry</div>
+                          <div className="flex justify-between items-center gap-4">
+                             <span className="text-xs font-bold text-white">{weather.temp}°C</span>
+                             <span className="text-[9px] font-bold text-white/40 uppercase">{weather.condition}</span>
+                          </div>
+                       </div>
+                    )}
+                 </div>
+               </Popup>
             </CircleMarker>
 
             {/* Destination Node */}
@@ -109,16 +147,28 @@ export default function GeoMap({ organizations = [], shipment, mode }: GeoMapPro
                <Popup className="custom-popup"><div className="p-2 text-white font-black text-xs">DESTINATION: {shipment.destination}</div></Popup>
             </CircleMarker>
 
-            {/* Current Pulse (Animated mock-up of real-time position) */}
+            {/* Current Pulse (Controlled by Tracking Data or Animation) */}
             <CircleMarker 
-              center={[
-                  originCoords[0] + (destCoords[0] - originCoords[0]) * 0.4,
-                  originCoords[1] + (destCoords[1] - originCoords[1]) * 0.4
-              ]} 
-              pathOptions={{ color: '#22d3ee', fillColor: '#22d3ee', fillOpacity: 1, weight: 0 }} 
-              radius={5}
+              center={currentCoords || [0,0]} 
+              pathOptions={{ 
+                color: trackedCoords ? '#3b82f6' : '#22d3ee', 
+                fillColor: trackedCoords ? '#3b82f6' : '#22d3ee', 
+                fillOpacity: 1, 
+                weight: 0 
+              }} 
+              radius={trackedCoords ? 7 : 5}
               className="pulse-marker"
-            />
+            >
+               <Popup className="custom-popup">
+                  <div className="p-2 space-y-1">
+                     <div className="text-[10px] font-black text-primary uppercase tracking-widest">Live Asset Tracking</div>
+                     <div className="text-white font-bold text-xs">{shipment.status}</div>
+                     {trackedCoords && (
+                        <div className="text-[9px] text-white/40 font-mono">GPS: {shipment.last_lat}, {shipment.last_lon}</div>
+                     )}
+                  </div>
+               </Popup>
+            </CircleMarker>
           </>
         )}
       </MapContainer>

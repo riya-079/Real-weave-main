@@ -49,6 +49,13 @@ class Shipment(BaseModel):
     events: List[Event] = Field(default_factory=list)
     anomaly_ids: List[str] = Field(default_factory=list)
     trust_score: float
+    
+    # Tracking fields
+    tracking_number: Optional[str] = None
+    carrier: Optional[str] = None
+    estimated_delivery: Optional[datetime] = None
+    last_lat: Optional[float] = None
+    last_lon: Optional[float] = None
 
 class FutureScenario(BaseModel):
     id: str

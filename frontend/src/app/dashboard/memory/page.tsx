@@ -2,9 +2,9 @@
 
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Box, Thermometer, Zap, MapPin, Ruler, Layers, ArrowRight, ShieldCheck, History, Download, Filter, Search, Globe, Clock, Package } from 'lucide-react';
+import { Box, Thermometer, Zap, MapPin, Ruler, Layers, ArrowRight, ShieldCheck, History, Download, Filter, Search, Globe, Clock, Package, CloudSun, Wind, Droplets } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getShipments, getEvents } from '@/lib/api';
+import { getShipments, getEvents, syncTracking, updateShipment } from '@/lib/api';
 import { useLiveRefresh } from '@/lib/useLiveRefresh';
 import dynamic from 'next/dynamic';
 
@@ -20,6 +20,11 @@ type ShipmentSummary = {
    status: string;
    trust_score: number;
    created_at: string;
+   tracking_number?: string;
+   carrier?: string;
+   estimated_delivery?: string;
+   last_lat?: number;
+   last_lon?: number;
 };
 
 type ShipmentEvent = {
@@ -38,6 +43,15 @@ export default function MemoryCapsule() {
    const [selected, setSelected] = useState<ShipmentSummary | null>(null);
    const [loading, setLoading] = useState(true);
    const [query, setQuery] = useState('');
+   const [weather, setWeather] = useState<any>(null);
+   const [fetchingWeather, setFetchingWeather] = useState(false);
+
+   const regionCoords: Record<string, { lat: number, lon: number }> = {
+      'North America': { lat: 41.8781, lon: -87.6298 },
+      'Europe': { lat: 51.9225, lon: 4.4792 },
+      'Asia': { lat: 31.2304, lon: 121.4737 },
+      'Global': { lat: 1.3521, lon: 103.8198 }
+   };
 
    const loadData = useCallback(async () => {
       try {
@@ -45,17 +59,41 @@ export default function MemoryCapsule() {
          const shipmentData = await getShipments();
          setShipments(shipmentData);
 
-         // Initially fetch events only for the first shipment to avoid overwhelming the API
          if (shipmentData.length > 0 && !selected) {
             setSelected(shipmentData[0]);
-            const initialEvents = await getEvents(shipmentData[0].id);
-            setEventsByShipment({ [shipmentData[0].id]: initialEvents });
          }
       } catch (error) {
          console.error('Failed to load supply chain history:', error);
       } finally {
          setLoading(false);
       }
+   }, [selected]);
+
+   // Fetch weather when selection changes
+   useEffect(() => {
+      async function fetchWeatherForShipment() {
+         if (!selected) return;
+         
+         // Deduce region from origin org
+         let region = 'Global';
+         if (selected.origin.includes('Nexus')) region = 'North America';
+         else if (selected.origin.includes('Quantum')) region = 'Europe';
+         else if (selected.origin.includes('Apex') || selected.origin.includes('Silk')) region = 'Asia';
+         
+         const coords = regionCoords[region];
+         try {
+            setFetchingWeather(true);
+            const { getWeather } = await import('@/lib/api');
+            const data = await getWeather(coords.lat, coords.lon);
+            setWeather(data);
+         } catch (err) {
+            console.error('Weather Fetch Error:', err);
+         } finally {
+            setFetchingWeather(false);
+         }
+      }
+
+      fetchWeatherForShipment();
    }, [selected]);
 
    // Load events when selection changes
@@ -209,7 +247,114 @@ export default function MemoryCapsule() {
                       </div>
                    </div>
 
-                   {/* Telemetry Metrics */}
+                   {/* Atmospheric Intelligence */}
+                   <div className="space-y-4">
+                      <h3 className="text-xs font-black text-white/30 uppercase tracking-widest flex items-center gap-2">
+                         <CloudSun size={14} className="text-secondary" /> Atmospheric Intelligence
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                         {fetchingWeather ? (
+                            <div className="col-span-4 p-8 bg-white/5 rounded-3xl border border-white/5 flex items-center justify-center animate-pulse">
+                               <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Polling Satellite Atmospheric Data...</p>
+                            </div>
+                         ) : weather ? (
+                            <>
+                               <div className="p-6 bg-white/5 rounded-3xl border border-white/5 space-y-3 relative overflow-hidden group hover:bg-white/10 transition-all">
+                                  <div className="flex justify-between items-start">
+                                     <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Ambient Temp</span>
+                                     <Thermometer size={16} className="text-secondary" />
+                                  </div>
+                                  <div className="text-3xl font-black text-white italic">{weather.temp?.toFixed(1)}°C</div>
+                                  <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">{weather.condition}</p>
+                                  <div className="absolute -bottom-4 -right-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                     <Thermometer size={64} />
+                                  </div>
+                               </div>
+                               <div className="p-6 bg-white/5 rounded-3xl border border-white/5 space-y-3 relative overflow-hidden group hover:bg-white/10 transition-all">
+                                  <div className="flex justify-between items-start">
+                                     <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Wind Velocity</span>
+                                     <Wind size={16} className="text-secondary" />
+                                  </div>
+                                  <div className="text-3xl font-black text-white italic">{weather.wind_speed} <span className="text-xs">m/s</span></div>
+                                  <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Surface Flow</p>
+                               </div>
+                               <div className="p-6 bg-white/5 rounded-3xl border border-white/5 space-y-3 relative overflow-hidden group hover:bg-white/10 transition-all">
+                                  <div className="flex justify-between items-start">
+                                     <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Humidity Flux</span>
+                                     <Droplets size={16} className="text-secondary" />
+                                  </div>
+                                  <div className="text-3xl font-black text-white italic">{weather.humidity}%</div>
+                                  <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Relative Saturation</p>
+                               </div>
+                               <div className="p-6 bg-white/10 rounded-3xl border border-secondary/20 space-y-3 relative overflow-hidden">
+                                  <div className="flex justify-between items-start">
+                                     <span className="text-[10px] font-black text-secondary uppercase tracking-widest">Local Context</span>
+                                     <Globe size={16} className="text-secondary" />
+                                  </div>
+                                  <div className="text-lg font-black text-white uppercase italic leading-tight">{weather.city}</div>
+                                  <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Verification Node</p>
+                               </div>
+                            </>
+                         ) : (
+                            <div className="col-span-4 p-8 bg-danger/5 rounded-3xl border border-danger/10 flex items-center justify-center">
+                               <p className="text-[10px] font-black text-danger/40 uppercase tracking-widest italic">Atmospheric telemetry offline</p>
+                            </div>
+                         )}
+                      </div>
+                   </div>
+
+                  {/* Real-World Tracking Linkage */}
+                  <div className="space-y-4">
+                     <h3 className="text-xs font-black text-white/30 uppercase tracking-widest flex items-center gap-2">
+                        <Zap size={14} className="text-primary" /> Carrier Intelligence Hub
+                     </h3>
+                     <div className="p-8 bg-white/5 rounded-[40px] border border-white/5 flex flex-col md:flex-row gap-8 items-center justify-between group">
+                        <div className="space-y-2">
+                           {selected.tracking_number ? (
+                              <>
+                                 <div className="text-lg font-black text-white italic uppercase tracking-tighter">Connected to {selected.carrier} Tracking</div>
+                                 <div className="text-xs font-mono text-primary font-bold"># {selected.tracking_number}</div>
+                                 <p className="text-[10px] text-white/30 font-bold uppercase tracking-widest">Last Synced: Just now via Cloud Relay</p>
+                              </>
+                           ) : (
+                              <>
+                                 <div className="text-lg font-black text-white italic uppercase tracking-tighter">Offline Tracking Mode</div>
+                                 <p className="text-xs text-white/40">Link this capsule to a real FedEx, UPS, or DHL tracking number to bridge reality.</p>
+                              </>
+                           )}
+                        </div>
+                        
+                        <div className="flex gap-4">
+                           {!selected.tracking_number ? (
+                              <button 
+                                 onClick={async () => {
+                                    const num = prompt('Enter Carrier Tracking Number:');
+                                    const car = prompt('Enter Carrier Code (fedex, ups, dhl):');
+                                    if (num && car) {
+                                       await updateShipment(selected.id, { ...selected, tracking_number: num, carrier: car });
+                                       loadData();
+                                    }
+                                 }}
+                                 className="px-6 py-3 bg-primary hover:glow-shadow-primary text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all"
+                              >
+                                 Link Real Carrier
+                              </button>
+                           ) : (
+                              <button 
+                                 onClick={async () => {
+                                    await syncTracking(selected.id);
+                                    loadData();
+                                 }}
+                                 className="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/10 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all"
+                              >
+                                 Sync Network Data
+                              </button>
+                           )}
+                        </div>
+                     </div>
+                  </div>
+
+                  {/* Telemetry Metrics */}
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 py-4">
                       <MemoryMetric icon={<Package size={18} />} label="Payload Type" value="Quantum Component" sub="Ref: B-402-X" />
                       <MemoryMetric icon={<Clock size={18} />} label="Travel Duration" value="122.4 Hours" sub="Efficiency: +14%" />

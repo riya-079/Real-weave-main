@@ -24,6 +24,13 @@ class Shipment(Base):
     trust_score = Column(Float)
     events = Column(JSON, default=list)
     anomaly_ids = Column(JSON, default=list)
+    
+    # Real World Tracking
+    tracking_number = Column(String, nullable=True)
+    carrier = Column(String, nullable=True)
+    estimated_delivery = Column(DateTime(timezone=True), nullable=True)
+    last_lat = Column(Float, nullable=True)
+    last_lon = Column(Float, nullable=True)
 
 class Event(Base):
     __tablename__ = "events"

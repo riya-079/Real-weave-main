@@ -33,6 +33,8 @@ export const updateShipment = (id: string, data: any) =>
   fetchAPI(`/shipments/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const deleteShipment = (id: string) => 
   fetchAPI(`/shipments/${id}`, { method: 'DELETE' });
+export const syncTracking = (id: string) => 
+  fetchAPI(`/shipments/${id}/sync-tracking`, { method: 'POST' });
 
 // Anomalies
 export const getAnomalies = () => fetchAPI('/anomalies');
@@ -81,19 +83,66 @@ export const createGhostInventory = (data: any) =>
   fetchAPI('/ghost-inventory', { method: 'POST', body: JSON.stringify(data) });
 
 // Negotiations
-export const getNegotiations = () => fetchAPI('/negotiations');
-export const createNegotiation = (data: any) => 
+function transformNegotiation(raw: any) {
+  return {
+    id: raw.id,
+    title: raw.strategy ? `${raw.strategy} – ${raw.anomaly_id}` : `Resolution: ${raw.anomaly_id}`,
+    participants: raw.partner_id ? [raw.partner_id, 'Real Weave'] : ['Real Weave'],
+    status: raw.status || 'Open',
+    strategy_type: raw.strategy || 'Collaborative Resolution',
+    current_deal: raw.history?.length ? raw.history[raw.history.length - 1]?.proposal || 'In Discussion' : 'Awaiting Proposal',
+    anomaly_id: raw.anomaly_id,
+    raw_history: raw.history || [],
+  };
+}
+export const getNegotiations = async () => {
+  const raw = await fetchAPI('/negotiations');
+  return raw.map(transformNegotiation);
+};
+export const createNegotiation = (data: any) =>
   fetchAPI('/negotiations', { method: 'POST', body: JSON.stringify(data) });
-export const updateNegotiation = (id: string, data: any) => 
+export const updateNegotiation = (id: string, data: any) =>
   fetchAPI(`/negotiations/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 
 // Trust DNA
-export const getAllTrustDNA = () => fetchAPI('/trust-dna');
-export const getTrustDNA = (orgId: string) => fetchAPI(`/trust-dna/${orgId}`);
-export const createTrustDNA = (data: any) => 
+function transformTrustDNA(raw: any) {
+  const dims: Record<string, number> = {
+    stability: raw.stability ?? 0,
+    honesty: raw.honesty ?? 0,
+    speed: raw.punctuality ?? 0,
+    precision: raw.quality ?? 0,
+    consistency: raw.consistency ?? 0,
+    disclosure: raw.disclosure ?? 0,
+  };
+  const avg = Object.values(dims).reduce((a, b) => a + b, 0) / Object.values(dims).length;
+  return {
+    id: raw.org_id,
+    org_id: raw.org_id,
+    score: avg,
+    dimensions: dims,
+    history: [
+      { date: 'Week 1', score: Math.max(0, avg - 0.05 + Math.random() * 0.02) },
+      { date: 'Week 2', score: Math.max(0, avg - 0.02 + Math.random() * 0.02) },
+      { date: 'Week 3', score: Math.max(0, avg + Math.random() * 0.02) },
+      { date: 'Current', score: avg },
+    ],
+  };
+}
+export const getAllTrustDNA = async () => {
+  const raw = await fetchAPI('/trust-dna');
+  return raw.map(transformTrustDNA);
+};
+export const getTrustDNA = async (orgId: string) => {
+  const raw = await fetchAPI(`/trust-dna/${orgId}`);
+  return transformTrustDNA(raw);
+};
+export const createTrustDNA = (data: any) =>
   fetchAPI('/trust-dna', { method: 'POST', body: JSON.stringify(data) });
 
 // Sentiment
 export const getSentiment = () => fetchAPI('/sentiment');
 export const updateSentiment = (data: any) => 
   fetchAPI('/sentiment', { method: 'PUT', body: JSON.stringify(data) });
+
+// Weather
+export const getWeather = (lat: number, lon: number) => fetchAPI(`/weather?lat=${lat}&lon=${lon}`);

@@ -231,7 +231,72 @@ export default function FutureDreaming() {
          </div>
       </div>
 
-      {/* New Scenario Modal (Omitted for brevity in this fix, can be added if needed) */}
+       {/* New Scenario Modal */}
+       <AnimatePresence>
+         {showForm && (
+            <motion.div 
+               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+               onClick={() => setShowForm(false)}
+            >
+               <motion.div 
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                  onClick={e => e.stopPropagation()}
+                  className="w-full max-w-xl glass-morphism rounded-[40px] border border-white/10 p-10 space-y-8"
+               >
+                  <div className="flex justify-between items-center">
+                     <div>
+                        <h3 className="text-2xl font-black text-white italic tracking-tighter uppercase">Seed Scenario</h3>
+                        <p className="text-white/40 text-xs font-medium">Define a new what-if disruption model</p>
+                     </div>
+                     <button onClick={() => setShowForm(false)} className="p-2 rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white transition-all">
+                        <X size={20} />
+                     </button>
+                  </div>
+                  <form onSubmit={handleCreateScenario} className="space-y-6">
+                     <div className="space-y-2">
+                        <label className="text-[10px] font-black text-white/30 uppercase tracking-widest block">Scenario Name</label>
+                        <input value={newName} onChange={e => setNewName(e.target.value)} required placeholder="e.g. Port Closure – Shanghai" className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-primary/40 transition-all font-medium" />
+                     </div>
+                     <div className="space-y-2">
+                        <label className="text-[10px] font-black text-white/30 uppercase tracking-widest block">Description</label>
+                        <textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} required rows={3} placeholder="Describe the disruption scenario in detail..." className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-primary/40 transition-all font-medium resize-none" />
+                     </div>
+                     <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                           <label className="text-[10px] font-black text-white/30 uppercase tracking-widest block">Probability ({Math.round(newProb * 100)}%)</label>
+                           <input type="range" min={0} max={1} step={0.01} value={newProb} onChange={e => setNewProb(parseFloat(e.target.value))} className="w-full accent-primary" />
+                        </div>
+                        <div className="space-y-2">
+                           <label className="text-[10px] font-black text-white/30 uppercase tracking-widest block">Impact ({Math.round(newImpact * 100)}%)</label>
+                           <input type="range" min={0} max={1} step={0.01} value={newImpact} onChange={e => setNewImpact(parseFloat(e.target.value))} className="w-full accent-danger" />
+                        </div>
+                     </div>
+                     <div className="space-y-3">
+                        <label className="text-[10px] font-black text-white/30 uppercase tracking-widest block">Ripple Effects</label>
+                        <div className="flex gap-2">
+                           <input value={rippleInput} onChange={e => setRippleInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addRipple(); }}} placeholder="Add a ripple effect..." className="flex-1 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-primary/40 font-medium" />
+                           <button type="button" onClick={addRipple} className="px-4 py-2 bg-primary/20 text-primary rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/30 transition-all"><Plus size={16} /></button>
+                        </div>
+                        {newRipples.length > 0 && (
+                           <div className="flex flex-wrap gap-2">
+                              {newRipples.map((r, i) => (
+                                 <span key={i} className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-xs text-white/60 font-medium flex items-center gap-2">
+                                    {r}
+                                    <button type="button" onClick={() => setNewRipples(newRipples.filter((_, j) => j !== i))} className="text-white/20 hover:text-danger transition-colors"><X size={12} /></button>
+                                 </span>
+                              ))}
+                           </div>
+                        )}
+                     </div>
+                     <button type="submit" className="w-full py-4 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest glow-shadow-primary hover:scale-[1.02] transition-all">
+                        Deploy Scenario
+                     </button>
+                  </form>
+               </motion.div>
+            </motion.div>
+         )}
+       </AnimatePresence>
     </div>
   );
 }

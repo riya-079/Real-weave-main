@@ -18,6 +18,9 @@ def init_db():
             {"id": "org-3", "name": "Apex Manufacturing", "type": "Manufacturer", "region": "Asia", "trust": 0.78},
             {"id": "org-4", "name": "Global Freight X", "type": "Transporter", "region": "Global", "trust": 0.65},
             {"id": "org-5", "name": "Silk Road Systems", "type": "Supplier", "region": "Asia", "trust": 0.88},
+            {"id": "org-in-1", "name": "Delhivery Logistics", "type": "Transporter", "region": "India", "trust": 0.90},
+            {"id": "org-in-2", "name": "Blue Dart Express", "type": "Transporter", "region": "India", "trust": 0.94},
+            {"id": "org-in-3", "name": "Mumbai Port Trust", "type": "Warehouse", "region": "India", "trust": 0.82},
         ]
         for org_data in orgs_data:
             db.add(db_models.Organization(

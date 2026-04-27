@@ -208,7 +208,7 @@ export default function DigitalTwin() {
                     fitView
                     className="trust-graph"
                   >
-                    <Background color="#fff" gap={40} size={1} opacity={0.03} />
+                    <Background color="#fff" gap={40} size={1} style={{ opacity: 0.03 }} />
                     <Controls className="!bg-white/5 !border-none !shadow-none [&_button]:!invert [&_button]:!opacity-40" />
                   </ReactFlow>
                </motion.div>

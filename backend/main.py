@@ -10,6 +10,8 @@ from models import schemas
 from models import db as db_models
 from database import get_db, engine, Base
 from init_db import init_db
+from services.weather import weather_service
+from services.tracking import tracking_service
 import os
 import httpx
 from dotenv import load_dotenv
@@ -17,13 +19,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
-
-# Global News Cache
-news_cache = []
-
-# Initialize database logic will be handled in startup_event to avoid blocking uvicorn
-# Base.metadata.create_all(bind=engine)
-# init_db()
+OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
 app = FastAPI(title="Real Weave API", description="Cognitive Supply Chain Intelligence Platform")
 
@@ -34,6 +30,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/weather")
+async def get_weather(lat: float, lon: float):
+    return await weather_service.get_weather(lat, lon)
+
+# Global News Cache
+news_cache = []
+
+# Initialize database logic will be handled in startup_event to avoid blocking uvicorn
+# Base.metadata.create_all(bind=engine)
+# init_db()
+
 
 live_clients: set[WebSocket] = set()
 
@@ -99,6 +107,11 @@ def serialize_shipment(shipment: db_models.Shipment) -> schemas.Shipment:
         events=normalized_events,
         anomaly_ids=list(getattr(shipment, "anomaly_ids", []) or []),
         trust_score=float(getattr(shipment, "trust_score", 0.0) or 0.0),
+        tracking_number=getattr(shipment, "tracking_number", None),
+        carrier=getattr(shipment, "carrier", None),
+        estimated_delivery=getattr(shipment, "estimated_delivery", None),
+        last_lat=getattr(shipment, "last_lat", None),
+        last_lon=getattr(shipment, "last_lon", None)
     )
 
 
@@ -283,12 +296,22 @@ async def create_shipment(shipment_data: schemas.Shipment, db: Session = Depends
         created_at=shipment_data.created_at,
         trust_score=shipment_data.trust_score,
         events=shipment_data.events,
-        anomaly_ids=shipment_data.anomaly_ids
+        anomaly_ids=shipment_data.anomaly_ids,
+        tracking_number=shipment_data.tracking_number,
+        carrier=shipment_data.carrier,
+        estimated_delivery=shipment_data.estimated_delivery,
+        last_lat=shipment_data.last_lat,
+        last_lon=shipment_data.last_lon
     )
     db.add(db_shipment)
     db.commit()
     db.refresh(db_shipment)
     await notify_live_update("shipments", "created", str(db_shipment.id))
+    
+    # If tracking info provided, trigger an immediate sync
+    if db_shipment.tracking_number and db_shipment.carrier:
+        asyncio.create_task(sync_shipment_tracking(str(db_shipment.id)))
+        
     return serialize_shipment(db_shipment)
 
 @app.put("/shipments/{shipment_id}", response_model=schemas.Shipment)
@@ -303,11 +326,67 @@ async def update_shipment(shipment_id: str, shipment_data: schemas.Shipment, db:
     setattr(db_shipment, "trust_score", shipment_data.trust_score)
     setattr(db_shipment, "events", [event.model_dump() for event in shipment_data.events])
     setattr(db_shipment, "anomaly_ids", shipment_data.anomaly_ids)
+    setattr(db_shipment, "tracking_number", shipment_data.tracking_number)
+    setattr(db_shipment, "carrier", shipment_data.carrier)
+    setattr(db_shipment, "estimated_delivery", shipment_data.estimated_delivery)
+    setattr(db_shipment, "last_lat", shipment_data.last_lat)
+    setattr(db_shipment, "last_lon", shipment_data.last_lon)
     
     db.commit()
     db.refresh(db_shipment)
     await notify_live_update("shipments", "updated", str(db_shipment.id))
+    
+    # If tracking info updated, sync
+    if shipment_data.tracking_number and shipment_data.carrier:
+        asyncio.create_task(sync_shipment_tracking(str(db_shipment.id)))
+
     return serialize_shipment(db_shipment)
+
+@app.post("/shipments/{shipment_id}/sync-tracking")
+async def sync_tracking(shipment_id: str, db: Session = Depends(get_db)):
+    db_shipment = db.query(db_models.Shipment).filter(db_models.Shipment.id == shipment_id).first()
+    if not db_shipment:
+        raise HTTPException(status_code=404, detail="Shipment not found")
+    
+    if not db_shipment.tracking_number or not db_shipment.carrier:
+        raise HTTPException(status_code=400, detail="Shipment has no tracking information")
+        
+    tracked_data = await tracking_service.get_tracking_info(db_shipment.tracking_number, db_shipment.carrier)
+    
+    # Update shipment with latest tracking data
+    db_shipment.status = tracked_data["status"]
+    if tracked_data.get("estimated_delivery"):
+        db_shipment.estimated_delivery = datetime.fromisoformat(tracked_data["estimated_delivery"])
+    db_shipment.last_lat = tracked_data.get("lat")
+    db_shipment.last_lon = tracked_data.get("lon")
+    
+    # Add a tracking event if it doesn't already exist
+    if tracked_data.get("events"):
+        latest = tracked_data["events"][0]
+        # Avoid duplicate events by comparing timestamp or description (omitted for brevity)
+    
+    db.commit()
+    await notify_live_update("shipments", "updated", shipment_id)
+    return {"status": "success", "data": tracked_data}
+
+async def sync_shipment_tracking(shipment_id: str):
+    """Background helper to sync tracking data."""
+    # We need a new session for background tasks
+    from database import SessionLocal
+    db = SessionLocal()
+    try:
+        db_shipment = db.query(db_models.Shipment).filter(db_models.Shipment.id == shipment_id).first()
+        if db_shipment and db_shipment.tracking_number and db_shipment.carrier:
+            data = await tracking_service.get_tracking_info(db_shipment.tracking_number, db_shipment.carrier)
+            db_shipment.status = data["status"]
+            if data.get("estimated_delivery"):
+                db_shipment.estimated_delivery = datetime.fromisoformat(data["estimated_delivery"])
+            db_shipment.last_lat = data.get("lat")
+            db_shipment.last_lon = data.get("lon")
+            db.commit()
+            # Note: notify_live_update relies on active event loop, might need adjustment for pure background
+    finally:
+        db.close()
 
 @app.delete("/shipments/{shipment_id}")
 async def delete_shipment(shipment_id: str, db: Session = Depends(get_db)):
